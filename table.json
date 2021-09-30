@@ -1,0 +1,34 @@
+[
+  {
+    "name"   : "human",
+    "pk"     : "human_id",
+    "columns": ["human_id"   , "center_name" , "project_name", "human_cancer_type", "human_sex"],
+    "type"   : ["VARCHAR(10)", "VARCHAR(100)", "VARCHAR(100)", "VARCHAR(100)"     , "VARCHAR(10)"],
+    "attr"   : ["PRIMARY KEY", "NOT NULL"    , "NOT NULL"    , "NOT NULL"         , ""],
+    "excel"  : true
+  },
+  {
+    "name"   : "cancer",
+    "pk"     : "cancer_id",
+    "columns": ["human_id"   , "cancer_receive_date", "cancer_path"],
+    "type"   : ["VARCHAR(10)", "DATE"               , "VARCHAR(300)"],
+    "attr"   : ["NOT NULL"   , "NOT NULL"           , "NOT NULL" ],
+    "excel"  : true
+  },
+  {
+    "name"   : "bam",
+    "pk"     : "",
+    "columns": ["human_id"   , "bam_create_date", "bam_path"],
+    "type"   : ["VARCHAR(10)", "DATE"           , "VARCHAR(300)"],
+    "attr"   : ["NOT NULL"   , "NOT NULL"       , "NOT NULL"],
+    "excel"  : false
+  },
+  {
+    "name"   : "vcf",
+    "pk"     : "",
+    "columns": ["human_id"   , "vcf_create_date", "vcf_path"],
+    "type"   : ["VARCHAR(10)", "DATE"           , "VARCHAR(300)"],
+    "attr"   : ["NOT NULL"   , "NOT NULL"       , "NOT NULL"],
+    "excel"  : false
+  }
+]
