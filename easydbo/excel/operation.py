@@ -1,6 +1,7 @@
 import openpyxl
 from easydbo import constant
 
+
 class ExcelOperation:
     def __init__(self, config, excel_path, sheet, columns, primary_idx):
         self.config = config
@@ -46,6 +47,11 @@ class ExcelOperation:
 
     def get_data(self):
         return self.data
+
+    @staticmethod
+    def get_sheet(path):
+        wb = openpyxl.load_workbook(path)
+        return wb.sheetnames
 
     def col_to_idx(self, cols):
         return [self.columns.index(c) for c in cols]

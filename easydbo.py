@@ -5,12 +5,6 @@ from easydbo.database.operation import DatabaseOperation
 from easydbo.excel.operation import ExcelOperation
 from easydbo.hash import HashCreator, HashDiff
 from easydbo.output import Output
-#from easydbo.database.manager import DatabaseManager
-#from easydbo.excel.manager import ExcelManager
-#from easydbo.table import column
-#from easydbo.excel import sheetname
-#from easydbo import compare_hash
-#from easydbo.table import table
 
 # Initial settings
 arggeter = ArgumentGetter()
@@ -18,23 +12,31 @@ cfggeter = ConfigGetter()
 tblgeter = TableGetter()
 args = arggeter.get()
 cfgs = cfggeter.get()
-tblexl, tbldb = tblgeter.get()
-
+tables = tblgeter.get()
 exl_path = args.excel_path
 db_cfg = cfgs['database']
 exl_cfg = cfgs['excel']
-#exlmgr = ExcelManager()
 dbop = DatabaseOperation(db_cfg)
 dbop.authenticate()
 hash_creator = HashCreator()
+sheets = ExcelOperation.get_sheet(exl_path)
+
+def get_table_idx(sheet, tables):
+    names = [t.name for t in tables]
+    idx = names.index(sheet)
+    if idx == -1:
+        print(f'[Error] Sheet name must be one of the following: {names}')
+        exit(1)
+    return idx
+
+tblexls = [tables[get_table_idx(sheet, tables)] for sheet in sheets]
 
 # Get data to insert or delte
-for idx_tblexl in range(len(tblexl)):
-    tblexl_i = tblexl[idx_tblexl]
-    table = tblexl_i.name
-    columns = tblexl_i.columns
-    primary_key = tblexl_i.pk
-    primary_idx = tblexl_i.pkidx
+for tblexl in tblexls:
+    table = tblexl.name
+    columns = tblexl.columns
+    primary_key = tblexl.pk
+    primary_idx = tblexl.pkidx
     db_columns = [primary_key] + columns if primary_idx == -1 else columns
 
     # Get all column elements in excel sheet
@@ -55,9 +57,9 @@ for idx_tblexl in range(len(tblexl)):
     exl_diffidx, db_diffidx = HashDiff(exl_hash, db_hash).get_noncom_idx()
 
     # Set data to insert or delete in database
-    tblexl_i.insert = [exl_data[i] for i in exl_diffidx]
-    tblexl_i.delete = [db_data[i] for i in db_diffidx]
-    tblexl_i.delete_by_pk = [db_data_pk[i] for i in db_diffidx]
+    tblexl.insert = [exl_data[i] for i in exl_diffidx]
+    tblexl.delete = [db_data[i] for i in db_diffidx]
+    tblexl.delete_by_pk = [db_data_pk[i] for i in db_diffidx]
 
 #print(data)
 #print('-' * 10)
@@ -65,14 +67,13 @@ for idx_tblexl in range(len(tblexl)):
 #print(dbop.select('cancer', ['*']))
 #exit()
 
-for idx_tblexl in range(len(tblexl)):
-    tblexl_i = tblexl[idx_tblexl]
-    sheet = tblexl_i.name
-    columns = tblexl_i.columns
-    if tblexl_i.delete_by_pk:
-        dbop.delete_by_pk(sheet, tblexl_i.pk, tblexl_i.delete_by_pk)
-    if tblexl_i.insert:
-        dbop.insert(sheet, columns, tblexl_i.insert)
+for tblexl in tblexls:
+    sheet = tblexl.name
+    columns = tblexl.columns
+    if tblexl.delete_by_pk:
+        dbop.delete_by_pk(sheet, tblexl.pk, tblexl.delete_by_pk)
+    if tblexl.insert:
+        dbop.insert(sheet, columns, tblexl.insert)
 
 #print('-' * 10)
 #print(dbop.select('human', ['*']))
@@ -85,4 +86,4 @@ dbop.close()
 
 
 #cfg.ver
-Output.prettyprint(tblexl)
+Output.prettyprint(tblexls)

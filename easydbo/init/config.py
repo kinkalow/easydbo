@@ -1,7 +1,7 @@
 import configparser
-from easydbo.init.find import Finder
+from easydbo.init.file import File
 
-class ConfigGetter(Finder):
+class ConfigGetter(File):
     def __init__(self):
         self.filename = 'easydbo.cfg'
 

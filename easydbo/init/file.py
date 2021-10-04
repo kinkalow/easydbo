@@ -1,6 +1,6 @@
 import os
 
-class Finder:
+class File:
     def find(self, file):
         path1 = f'{os.path.abspath(".")}/{file}'
         path2 = f'{os.environ["EASYDBOPATH"]}/{file}' if 'EASYDBOPATH' in os.environ else ''

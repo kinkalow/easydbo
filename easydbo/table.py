@@ -1,16 +1,47 @@
 class Table:
-    def __init__(self, name, pk, columns, type_, attr, excel):
+    def __init__(self, name, pk, columns_info):
         self.name = name
         self.pk = pk
-        self.columns = columns
-        self.type = type_
-        self.attr = attr
-        self.excel = excel
+        self.columns, self.type, self.attr = self._split_colinfo(columns_info)
         #
         self.pkidx = self.name_to_idx(pk)
+        self.auto_pk = self._get_auto_pk_info(self.pkidx, pk)
+        self.attr = self._add_pk_to_attr(self.pkidx, self.attr)
+        self.attr_null = self._attr_null(self.attr)
+        self.attr_unique = self._attr_unique(self.attr)
+        #
         self._insert = []
         self._delete = []
         self._delete_by_pk = []
+
+    # for initial functions --->
+
+    def _split_colinfo(self, columns_info):
+        columns = list(columns_info.keys())
+        type_ = [c[0] for c in columns_info.values()]
+        attr = [c[1] for c in columns_info.values()]
+        return columns, type_, attr
+
+    def _get_auto_pk_info(self, pkidx, pk):
+        return {
+            'columns': pkidx,
+            'type': 'INTEGER UNSIGNED',
+            'attr': 'PRIMARY KEY AUTO INCREMENT'
+        } if pkidx == -1 and pk else {}
+
+    def _add_pk_to_attr(self, pkidx, attr):
+        if pkidx != -1 and 'PRIMARY KEY' not in attr[pkidx]:
+            space = ' ' if len(attr[pkidx]) > 0 else ''
+            attr[pkidx] = f'PRIMARY KEY{space}{attr[pkidx]}'
+        return attr
+
+    def _attr_null(self, attr):
+        return [False if 'NOT NULL' in a or 'PRIMARY KEY' in a else True for a in attr]
+
+    def _attr_unique(self, attr):
+        return [True if 'UNIQUE' in a or 'PRIMARY KEY' in a else False for a in attr]
+
+    # <---
 
     def name_to_idx(self, name):
         try:

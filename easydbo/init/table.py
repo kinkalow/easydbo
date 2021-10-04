@@ -1,8 +1,8 @@
 import json
 from easydbo.table import Table
-from easydbo.init.find import Finder
+from easydbo.init.file import File
 
-class TableGetter(Finder):
+class TableGetter(File):
     def __init__(self):
         self.filename = 'table.json'
 
@@ -10,8 +10,5 @@ class TableGetter(Finder):
         path = self.find(self.filename)
         with open(path) as f:
             tables = json.load(f)
-        exl_table = [Table(t['name'], t['pk'], t['columns'],
-                           t['type'], t['attr'], t['excel']) for t in tables if t['excel']]
-        db_table = [Table(t['name'], t['pk'], t['columns'],
-                          t['type'], t['attr'], t['excel']) for t in tables if not t['excel']]
-        return exl_table, db_table
+        tables = [Table(t['name'], t['pk'], t['columns']) for t in tables]
+        return tables
