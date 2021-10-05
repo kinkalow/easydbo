@@ -1,8 +1,6 @@
-class Output:
-    #def __init__(self, data_all):
-    #    self.data_all = data_all
+class TableOutput:
     @staticmethod
-    def prettyprint(data_all):
+    def table(data_all):
         for idx_data in range(len(data_all)):
             data_i = data_all[idx_data]
             sheet = data_i.name

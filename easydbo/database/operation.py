@@ -1,5 +1,6 @@
 import getpass
 from mysql import connector
+from easydbo.output.log import Log
 
 class DatabaseOperation:
     def __init__(self, config):
@@ -12,8 +13,7 @@ class DatabaseOperation:
         cfg = {k: v for k, v in self.config.items() if v}
         conn = connector.connect(**cfg)
         if not conn.is_connected():
-            print('[Error] Connection to MySQL server failed')
-            exit(1)
+            Log.error('Connection to MySQL server failed')
         self.conn = conn
         self.cursor = conn.cursor(buffered=True)
 

@@ -1,35 +1,33 @@
-from easydbo.init.argument import ArgumentGetter
-from easydbo.init.config import ConfigGetter
-from easydbo.init.table import TableGetter
+from easydbo.init.argument import ArgumentLoader
+from easydbo.init.config import ConfigLoader
+from easydbo.init.table import TableLoader
 from easydbo.database.operation import DatabaseOperation
+from easydbo.excel.util import get_sheet
 from easydbo.excel.operation import ExcelOperation
 from easydbo.hash import HashCreator, HashDiff
-from easydbo.output import Output
+from easydbo.output.table import TableOutput
 
-# Initial settings
-arggeter = ArgumentGetter()
-cfggeter = ConfigGetter()
-tblgeter = TableGetter()
-args = arggeter.get()
-cfgs = cfggeter.get()
-tables = tblgeter.get()
-exl_path = args.excel_path
-db_cfg = cfgs['database']
-exl_cfg = cfgs['excel']
+# Load
+arg_loader = ArgumentLoader()
+cfg_loader = ConfigLoader()
+tbl_loader = TableLoader()
+arguments = arg_loader.get()
+configs = cfg_loader.get()
+tables = tbl_loader.get()
+
+# Configs
+db_cfg = configs['database']
+exl_cfg = configs['excel']
+
+# All tables
+exl_path = arguments.excel_path
+sheets = get_sheet(exl_path)
+tblexls = [tables[tbl_loader.to_idx(sheet)] for sheet in sheets]
+
 dbop = DatabaseOperation(db_cfg)
 dbop.authenticate()
+
 hash_creator = HashCreator()
-sheets = ExcelOperation.get_sheet(exl_path)
-
-def get_table_idx(sheet, tables):
-    names = [t.name for t in tables]
-    idx = names.index(sheet)
-    if idx == -1:
-        print(f'[Error] Sheet name must be one of the following: {names}')
-        exit(1)
-    return idx
-
-tblexls = [tables[get_table_idx(sheet, tables)] for sheet in sheets]
 
 # Get data to insert or delte
 for tblexl in tblexls:
@@ -37,11 +35,16 @@ for tblexl in tblexls:
     columns = tblexl.columns
     primary_key = tblexl.pk
     primary_idx = tblexl.pkidx
-    db_columns = [primary_key] + columns if primary_idx == -1 else columns
+    idxes_col_uniq = [i for i, t_or_f in enumerate(tblexl.attr_unique) if t_or_f]
+    idxes_col_null = [i for i, t_or_f in enumerate(tblexl.attr_null) if t_or_f]
 
     # Get all column elements in excel sheet
     exlop = ExcelOperation(exl_cfg, exl_path, table, columns, primary_idx)
+    exlop.check_unique(idxes_col_uniq)
+    exlop.check_null(idxes_col_null)
     exl_data = exlop.get_data()
+
+    db_columns = [primary_key] + columns if primary_idx == -1 else columns
     t_db_data = dbop.select(table, db_columns)
     if primary_idx == -1:
         db_data_pk = [d.pop(0) for d in t_db_data]  # Pop primary values
@@ -80,10 +83,7 @@ for tblexl in tblexls:
 #print(dbop.select('cancer', ['*']))
 #exit()
 
-
 dbop.commit()
 dbop.close()
 
-
-#cfg.ver
-Output.prettyprint(tblexls)
+TableOutput.table(tblexls)

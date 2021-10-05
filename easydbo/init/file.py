@@ -1,4 +1,5 @@
 import os
+from easydbo.output.log import Log
 
 class File:
     def find(self, file):
@@ -12,5 +13,4 @@ class File:
         elif os.path.exists(path3):
             return path3
         else:
-            print(f'[Error] does not exist file: {file}')
-            exit(1)
+            Log.error(f'Does not exist file: {file}')

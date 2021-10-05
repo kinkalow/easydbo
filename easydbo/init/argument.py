@@ -3,7 +3,7 @@ import os
 from easydbo import __version__
 
 
-class ArgumentGetter:
+class ArgumentLoader:
     def __init__(self):
         self._parse()
 
