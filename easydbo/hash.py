@@ -30,3 +30,14 @@ class HashDiff:
             except KeyError:
                 r_idx1.append(idx1)
         return r_idx1, list(hash2_idx.values())
+
+
+def get_diff_idx(new_data, old_data):
+    '''
+    Return 1: index list of new_data that is in new_data but not in old_data (for insert)
+    Return 2: index list of old_data that is in old_data but not in new_data (for delete)
+    '''
+    hash_creator = HashCreator()
+    new_hash = hash_creator.create(new_data)
+    old_hash = hash_creator.create(old_data)
+    return HashDiff(new_hash, old_hash).get_noncom_idx()

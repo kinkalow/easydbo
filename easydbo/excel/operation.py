@@ -4,12 +4,13 @@ from easydbo.output.log import Log
 
 
 class ExcelOperation:
-    def __init__(self, config, excel_path, sheet, columns, primary_idx):
+    def __init__(self, config, excel_path, tblexl):
         self.config = config
         self.excel_path = excel_path
-        self.sheet = sheet
-        self.columns = columns
-        self.primary_idx = primary_idx
+        self.sheet = tblexl.name
+        self.columns = tblexl.columns
+        self.primary_idx = tblexl.pkidx
+        self.date_column = tblexl.get_column_date()
         #
         self.data = self._load()  # self.data[row][column]
 
@@ -19,10 +20,13 @@ class ExcelOperation:
         ws = wb.worksheets[sheetnum]
         # Header
         idx_valid = []
+        idx_date = []
         for row in ws.iter_rows(min_row=1, max_row=1):
             for idx, cell in enumerate(row):
                 if cell.value in self.columns:
                     idx_valid.append(idx)
+                if cell.value in self.date_column:
+                    idx_date.append(idx)
         if len(set(idx_valid)) != len(idx_valid):
             Log.error(f'Duplicate column names exist in {self.sheet}(sheet)')
         # Data
@@ -37,10 +41,12 @@ class ExcelOperation:
                     value = constant.NAN_STR
                 else:
                     is_empty_row = False
-                if cell.is_date:
-                    value = str(value.strftime('%Y-%m-%d'))
-                elif not isinstance(value, str):
-                    value = str(value)
+                    if idx in idx_date:
+                        if not cell.is_date:
+                            Log.error(f'Not date type: cell={cell.coordinate} sheet={self.sheet}')
+                        value = str(value.strftime('%Y-%m-%d'))
+                    elif not isinstance(value, str):
+                        value = str(value)
                 datum.append(value)
             if not is_empty_row:
                 data.append(datum)
