@@ -1,13 +1,11 @@
-from easydbo.init.argument import ArgumentInsertLoader
+from easydbo.init.argument import ArgumentDeleteLoader
 from easydbo.init.config import ConfigLoader
 from easydbo.init.table import TableLoader
 from easydbo.database.operation import DatabaseOperation
-from easydbo.hash import get_diff_idx
 from easydbo.output.table import TableOutput
-from easydbo.data import DataChecker
 
 # Loaders
-arg_loader = ArgumentInsertLoader()
+arg_loader = ArgumentDeleteLoader()
 cfg_loader = ConfigLoader()
 tbl_loader = TableLoader()
 arguments = arg_loader.get()
@@ -21,14 +19,6 @@ tbl = tables[tbl_loader.to_idx(arguments.table)]
 tbls = [tbl]
 
 
-# Data to insert
-idx_valid = list(range(len(tbl.columns)))
-idx_date = [tbl.name_to_idx(d) for d in tbl.get_column_date()] if tbl.get_column_date() else []
-dc = DataChecker(idx_valid, idx_date)
-new_data = [dc.convert(arguments.fields[0])]
-dc.check_unique(tbl.get_idx_uniq(), new_data)
-dc.check_null(tbl.get_idx_null(), new_data)
-
 # Get database data
 db_columns = [tbl.pk] + tbl.columns if tbl.pkidx == -1 else tbl.columns
 db_data = dbop.select(tbl.name, db_columns)
@@ -37,15 +27,16 @@ if tbl.pkidx == -1:
 else:
     db_data_pk = [d[tbl.pkidx] for d in db_data]
 
-# Get indexes with no common data
-new_diffidx = get_diff_idx(new_data, db_data)[0]
+# Get primary keys to delete
+db_diffidx = [db_data_pk.index(pk) for pk in arguments.pks if pk in db_data_pk]
 
-# Set insert data
-tbl.insert = [new_data[i] for i in new_diffidx]
+# Set delete data
+tbl.delete = [db_data[i] for i in db_diffidx]
+tbl.delete_by_pk = [db_data_pk[i] for i in db_diffidx]
 
-# Insert data into database
-if tbl.insert:
-    dbop.insert(tbl.name, tbl.columns, tbl.insert)
+# Delete data from database
+if tbl.delete_by_pk:
+    dbop.delete_by_pk(tbl.name, tbl.pk, tbl.delete_by_pk)
 
 
 # Last

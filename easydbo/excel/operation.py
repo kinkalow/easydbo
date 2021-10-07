@@ -30,8 +30,13 @@ class ExcelOperation:
         if len(set(idx_valid)) != len(idx_valid):
             Log.error(f'Duplicate column names exist in {self.sheet}(sheet)')
         # Data
+        #from easydbo.data import DataChecker
+        #dc = DataChecker(idx_valid, idx_date)
         data = []
         for row in ws.iter_rows(min_row=2):
+            #d = dc.convert([r.value for r in row])
+            #if d is not None:
+            #    data.append(d)
             datum = []
             is_empty_row = True
             for idx in idx_valid:
@@ -44,7 +49,7 @@ class ExcelOperation:
                     if idx in idx_date:
                         if not cell.is_date:
                             Log.error(f'Not date type: cell={cell.coordinate} sheet={self.sheet}')
-                        value = str(value.strftime('%Y-%m-%d'))
+                        value = str(value.strftime(constant.DATE_FORMAT))
                     elif not isinstance(value, str):
                         value = str(value)
                 datum.append(value)

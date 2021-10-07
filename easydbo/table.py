@@ -43,6 +43,15 @@ class Table:
 
     # <---
 
+    def get_column_date(self):
+        return [self.columns[i] for i, t in enumerate(self.type) if t == 'DATE']
+
+    def get_idx_null(self):
+        return [i for i, t_or_f in enumerate(self.attr_null) if t_or_f]
+
+    def get_idx_uniq(self):
+        return [i for i, t_or_f in enumerate(self.attr_unique) if t_or_f]
+
     def name_to_idx(self, name):
         try:
             return self.columns.index(name)
@@ -50,14 +59,7 @@ class Table:
             return -1
         return self.columns.index(name)
 
-    #def idx_to_name(self, idx):
-    #    return self.columns[idx]
-
-    #def get_idx_date(self):
-    #    return [i for i, t in enumerate(self.type) if t == 'DATE']
-
-    def get_column_date(self):
-        return [self.columns[i] for i, t in enumerate(self.type) if t == 'DATE']
+    # ---
 
     @property
     def insert(self):

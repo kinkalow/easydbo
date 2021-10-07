@@ -41,3 +41,14 @@ class ArgumentInsertLoader(Base):
 
     def _convert(self, args):
         args.fields = [args.fields]
+
+class ArgumentDeleteLoader(Base):
+    def __init__(self):
+        self._parse()
+
+    def _parse(self):
+        prog = 'easydbodelete'
+        parser = argparse.ArgumentParser(prog=prog)
+        parser.add_argument('table', type=str, help='table name')
+        parser.add_argument('pks', nargs='+', help='primary key values')
+        self._args = parser.parse_args()

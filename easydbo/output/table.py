@@ -3,10 +3,10 @@ class TableOutput:
     def table(data_all):
         for idx_data in range(len(data_all)):
             data_i = data_all[idx_data]
-            sheet = data_i.name
-            columns = data_i.columns
+            table = data_i['name']
+            columns = data_i['columns']
             for del_or_ins in ['insert', 'delete']:
-                data_d_r_i = data_i.insert if del_or_ins == 'insert' else data_i.delete
+                data_d_r_i = data_i['insert'] if del_or_ins == 'insert' else data_i['delete']
                 if data_d_r_i:
                     data_2d = [columns] + data_d_r_i
                     len_2d = [[len(data_d0) for data_d0 in data_1d] for data_1d in data_2d]
@@ -24,7 +24,7 @@ class TableOutput:
                         data_2d.insert(i, line)
                         space_2d.insert(i, [0] * len(len_2d[0]))
                     # Print
-                    out = f'{del_or_ins[0].upper() + del_or_ins[1:]} from {sheet} table\n'
+                    out = f'{del_or_ins[0].upper() + del_or_ins[1:]} from {table} table\n'
                     for i, (data_1d, space_1d) in enumerate(zip(data_2d, space_2d)):
                         row, sep = ('+-', '-+-') if i in idx_line else ('| ', ' | ')
                         for data_d0, space_d0 in zip(data_1d, space_1d):
@@ -32,3 +32,22 @@ class TableOutput:
                         row = row[:-1]
                         out += row + "\n"
                     print(out)
+
+    @staticmethod
+    def fulltable(data_all, dpop):
+        fulltbls = []
+        for idx, di in enumerate(data_all):
+            t = {}
+            t['name'] = di.name
+            if di.pkidx == -1:
+                t['columns'] = [di.pk] + di.columns
+                t['delete'] = [[di.delete_by_pk[i]] + d for i, d in enumerate(di.delete)]
+                where = dpop.get_key_val_cond(di.columns, di.insert)
+                pks = dpop.select(di.name, [di.pk], where=where)
+                t['insert'] = [pk + ins for pk, ins in zip(pks, di.insert)]
+            else:
+                t['columns'] = di.columns
+                t['insert'] = di.insert
+                t['delete'] = di.delete
+            fulltbls.append(t)
+        TableOutput.table(fulltbls)

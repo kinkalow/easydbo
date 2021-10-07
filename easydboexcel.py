@@ -26,11 +26,9 @@ tbls = [tables[tbl_loader.to_idx(sheet)] for sheet in sheets]
 # Get data to insert or delte
 for tbl in tbls:
     # Get column fields in excel sheet
-    idxes_col_uniq = [i for i, t_or_f in enumerate(tbl.attr_unique) if t_or_f]
-    idxes_col_null = [i for i, t_or_f in enumerate(tbl.attr_null) if t_or_f]
     exlop = ExcelOperation(configs['excel'], exl_path, tbl)
-    exlop.check_unique(idxes_col_uniq)
-    exlop.check_null(idxes_col_null)
+    exlop.check_unique(tbl.get_idx_uniq())
+    exlop.check_null(tbl.get_idx_null())
     new_data = exlop.get_data()
 
     # Get database data
@@ -44,7 +42,7 @@ for tbl in tbls:
     # Get indexes with no common data
     new_diffidx, db_diffidx = get_diff_idx(new_data, db_data)
 
-    # Set insert data and delete insert
+    # Set insert and delete data
     tbl.insert = [new_data[i] for i in new_diffidx]
     tbl.delete = [db_data[i] for i in db_diffidx]
     tbl.delete_by_pk = [db_data_pk[i] for i in db_diffidx]
@@ -57,8 +55,7 @@ for tbl in tbls:
         dbop.insert(tbl.name, tbl.columns, tbl.insert)
 
 
-# Close
+# Last
 dbop.commit()
+TableOutput.fulltable(tbls, dbop)
 dbop.close()
-# Output
-TableOutput.table(tbls)

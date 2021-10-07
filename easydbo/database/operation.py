@@ -27,10 +27,14 @@ class DatabaseOperation:
     #    rows = self.cursor.fetchall()
     #    data = [[str(d) for d in r] for r in rows]
     #    return data
+    def get_key_val_cond(self, keys, vlaues):
+        return ' OR '.join([
+            '(' + ' AND '.join([f'{k}="{v}"' for k, v in zip(keys, val)]) + ')'
+            for val in vlaues])
 
     def select(self, table, columns, where=''):
         columns = ','.join(columns)
-        where = 'WHERE {where}' if where else ''
+        where = f'WHERE {where}' if where else ''
         cmd = f'SELECT {columns} FROM {table} {where};'
         self.cursor.execute(cmd)  # QUESTION: should use multi=True?
         rows = self.cursor.fetchall()
@@ -46,7 +50,6 @@ class DatabaseOperation:
         col_str = ','.join(columns)
         cmd = f'INSERT INTO {table}({col_str}) VALUES ({("%s, "*len(data[0]))[:-2]});'
         self.cursor.executemany(cmd, data)
-        #self.conn.commit()
 
     def delete_by_pk(self, table, pk, pvs):
         '''
@@ -54,14 +57,13 @@ class DatabaseOperation:
         pk   : str    : primary key
         pvs  : 1D list: primary values
         '''
-        pvs_str = f'({pvs[0]})' if len(pvs) else str(tuple(pvs))
+        pvs_str = f'({pvs[0]})' if len(pvs) == 1 else str(tuple(pvs))
         where = f'{pk} in {pvs_str}'
         self.delete(table, where)
 
     def delete(self, table, where=''):
         cmd = f'DELETE FROM {table} WHERE {where};'
         self.cursor.execute(cmd)
-        #self.conn.commit()
 
     def commit(self):
         self.conn.commit()
