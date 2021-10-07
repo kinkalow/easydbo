@@ -4,7 +4,7 @@ from easydbo.init.table import TableLoader
 from easydbo.database.operation import DatabaseOperation
 from easydbo.hash import get_diff_idx
 from easydbo.output.table import TableOutput
-from easydbo.data import DataChecker
+from easydbo.newdata import NewData, NewDataChecker
 
 # Loaders
 arg_loader = ArgumentInsertLoader()
@@ -23,11 +23,12 @@ tbls = [tbl]
 
 # Data to insert
 idx_valid = list(range(len(tbl.columns)))
-idx_date = [tbl.name_to_idx(d) for d in tbl.get_column_date()] if tbl.get_column_date() else []
-dc = DataChecker(idx_valid, idx_date)
-new_data = [dc.convert(arguments.fields[0])]
-dc.check_unique(tbl.get_idx_uniq(), new_data)
-dc.check_null(tbl.get_idx_null(), new_data)
+idx_date = [tbl.name_to_idx(d) for d in tbl.get_cols_date()] if tbl.get_cols_date() else []
+dc = NewData(idx_valid, idx_date, dbop)
+new_data = [dc.normalize(arguments.fields[0])]
+ndc = NewDataChecker(dbop)
+ndc.unique(tbl, new_data[0])
+ndc.null(tbl, new_data[0])
 
 # Get database data
 db_columns = [tbl.pk] + tbl.columns if tbl.pkidx == -1 else tbl.columns

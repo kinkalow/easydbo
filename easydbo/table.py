@@ -43,13 +43,19 @@ class Table:
 
     # <---
 
-    def get_column_date(self):
+    def get_cols_date(self):
         return [self.columns[i] for i, t in enumerate(self.type) if t == 'DATE']
 
-    def get_idx_null(self):
+    def get_cols_null(self):
+        return [self.columns[i] for i, t_or_f in enumerate(self.attr_null) if t_or_f]
+
+    def get_cols_uniq(self):
+        return [self.columns[i] for i, t_or_f in enumerate(self.attr_unique) if t_or_f]
+
+    def get_idxes_null(self):
         return [i for i, t_or_f in enumerate(self.attr_null) if t_or_f]
 
-    def get_idx_uniq(self):
+    def get_idxes_uniq(self):
         return [i for i, t_or_f in enumerate(self.attr_unique) if t_or_f]
 
     def name_to_idx(self, name):

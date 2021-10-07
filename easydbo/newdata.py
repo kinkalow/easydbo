@@ -2,12 +2,13 @@ from easydbo.output.log import Log
 from easydbo import constant
 from datetime import datetime
 
-class DataChecker:
-    def __init__(self, idx_valid, idx_date):
+class NewData:
+    def __init__(self, idx_valid, idx_date, dbop=None):
         self.idx_valid = idx_valid
         self.idx_date = idx_date
+        self.dbop = dbop
 
-    def convert(self, data):
+    def normalize(self, data):
         new_data = []
         is_empty_row = True
         for idx in self.idx_valid:
@@ -28,15 +29,26 @@ class DataChecker:
             new_data.append(value)
         return None if is_empty_row else new_data
 
-    def check_unique(self, idxes, data):
-        max_len = len(data)
-        for idx in idxes:
-            d = [d[idx] for d in data]
-            if len(set(d)) != max_len:
-                Log.error(f'{self.columns[idx]}(column) of {self.sheet}(sheet) must have unique elements')
+class NewDataChecker:
+    def __init__(self, dbop):
+        self.dbop = dbop
 
-    def check_null(self, idxes, data):
-        for idx in idxes:
-            for d in data:
-                if d == constant.NAN_STR:
-                    Log.error(f'{self.columns[idx]}(column) of {self.sheet}(sheet) must not be empty')
+    def unique(self, table, new_data):
+        name = table.name
+        idxes_uniq = table.get_idxes_uniq()
+        cols_uniq = table.get_cols_uniq()
+        if not idxes_uniq:
+            return
+        vals_uniq = self.dbop.select(name, cols_uniq)
+        for idx, col in zip(idxes_uniq, cols_uniq):
+            targets = [v[idx] for v in vals_uniq]
+            if new_data[idx] in targets:
+                Log.error(f'"{col}={new_data[idx]}" must be unique')
+
+    def null(self, table, new_data):
+        idxes_null = table.get_idxes_null()
+        for i, d in enumerate(new_data):
+            if i in idxes_null:
+                continue
+            if d == constant.NAN_STR:
+                Log.error(f'"{table.columns[i]}" filed must not be null')

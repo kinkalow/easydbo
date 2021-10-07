@@ -32,13 +32,16 @@ class DatabaseOperation:
             '(' + ' AND '.join([f'{k}="{v}"' for k, v in zip(keys, val)]) + ')'
             for val in vlaues])
 
-    def select(self, table, columns, where=''):
+    def select(self, table, columns, where='', ret_flat=False):
         columns = ','.join(columns)
         where = f'WHERE {where}' if where else ''
         cmd = f'SELECT {columns} FROM {table} {where};'
         self.cursor.execute(cmd)  # QUESTION: should use multi=True?
         rows = self.cursor.fetchall()
-        data = [[str(d) for d in r] for r in rows]
+        if ret_flat:
+            data = [str(d) for r in rows for d in r]
+        else:
+            data = [[str(d) for d in r] for r in rows]
         return data
 
     def insert(self, table, columns, data):

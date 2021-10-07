@@ -40,7 +40,7 @@ class ArgumentInsertLoader(Base):
         self._convert(self._args)
 
     def _convert(self, args):
-        args.fields = [args.fields]
+        args.fields = [[f if f else None for f in args.fields]]
 
 class ArgumentDeleteLoader(Base):
     def __init__(self):

@@ -27,8 +27,8 @@ tbls = [tables[tbl_loader.to_idx(sheet)] for sheet in sheets]
 for tbl in tbls:
     # Get column fields in excel sheet
     exlop = ExcelOperation(configs['excel'], exl_path, tbl)
-    exlop.check_unique(tbl.get_idx_uniq())
-    exlop.check_null(tbl.get_idx_null())
+    exlop.check_unique(tbl.get_idxes_uniq())
+    exlop.check_null(tbl.get_idxes_null())
     new_data = exlop.get_data()
 
     # Get database data

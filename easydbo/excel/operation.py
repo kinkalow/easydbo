@@ -10,7 +10,7 @@ class ExcelOperation:
         self.sheet = tblexl.name
         self.columns = tblexl.columns
         self.primary_idx = tblexl.pkidx
-        self.date_column = tblexl.get_column_date()
+        self.date_column = tblexl.get_cols_date()
         #
         self.data = self._load()  # self.data[row][column]
 
@@ -30,8 +30,8 @@ class ExcelOperation:
         if len(set(idx_valid)) != len(idx_valid):
             Log.error(f'Duplicate column names exist in {self.sheet}(sheet)')
         # Data
-        #from easydbo.data import DataChecker
-        #dc = DataChecker(idx_valid, idx_date)
+        #from easydbo.newdata import NewData
+        #dc = NewData(idx_valid, idx_date)
         data = []
         for row in ws.iter_rows(min_row=2):
             #d = dc.convert([r.value for r in row])
