@@ -3,7 +3,7 @@ from easydbo import constant
 from datetime import datetime
 import openpyxl
 
-class NewData:
+class DataNormalizer:
     def __init__(self, idx_valid, idx_date):
         self.idx_valid = idx_valid
         self.idx_date = idx_date
@@ -53,11 +53,18 @@ class NewData:
                 data.append(datum)
         return data
 
-class NewDataChecker:
+def normalize(idx_valid, idx_date, data, sheet=None):
+    dn = DataNormalizer(idx_valid, idx_date)
+    if not isinstance(data, openpyxl.worksheet.worksheet.Worksheet):
+        data = dn.to_worksheet(data)
+    return dn.normalize(data, sheet=sheet)
+
+
+class DataChecker:
     def __init__(self, dbop):
         self.dbop = dbop
 
-    def unique(self, table, new_data):
+    def unique(self, table, data, except_idxes=[]):
         name = table.name
         idxes_uniq = table.get_idxes_uniq()
         cols_uniq = table.get_cols_uniq()
@@ -65,16 +72,25 @@ class NewDataChecker:
             return
         vals_uniq = self.dbop.select(name, cols_uniq)
         for idx, col in zip(idxes_uniq, cols_uniq):
+            if idx in except_idxes:
+                continue
             targets = [v[idx] for v in vals_uniq]
-            for nd in new_data:
-                if nd[idx] in targets:
-                    Log.error(f'"{col}={nd[idx]}" must be unique')
+            for d in data:
+                if d[idx] in targets:
+                    Log.error(f'"{col}={d[idx]}" must be unique')
 
-    def null(self, table, new_data):
+    def null(self, table, data, except_idxes=[]):
         idxes_null = table.get_idxes_null()
-        for nd in new_data:
-            for i, d in enumerate(nd):
-                if i in idxes_null:
+        for d in data:
+            for i, v in enumerate(d):
+                if i in except_idxes:
                     continue
-                if d == constant.NAN_STR:
+                elif i in idxes_null:
+                    continue
+                elif v == constant.NAN_STR:
                     Log.error(f'"{table.columns[i]}" filed must not be null')
+
+def check_data(dpop, table, data, except_idxes=[]):
+    dc = DataChecker(dpop)
+    dc.unique(table, data, except_idxes)
+    dc.null(table, data, except_idxes)

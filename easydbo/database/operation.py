@@ -68,6 +68,18 @@ class DatabaseOperation:
         cmd = f'DELETE FROM {table} WHERE {where};'
         self.cursor.execute(cmd)
 
+    def update(self, table, cols_vals, pn, pv):
+        '''
+        table    : str : table name
+        cols_vals: dict: pair of columns and values
+        pn       : str : primary names
+        pv       : str : primary values
+        '''
+        set_ = ', '.join([f'{c}="{v}"' for c, v in cols_vals.items()])
+        where = f'{pn}={pv}'
+        cmd = f'UPDATE {table} SET {set_} WHERE {where};'
+        self.cursor.execute(cmd)
+
     def commit(self):
         self.conn.commit()
 

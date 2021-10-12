@@ -5,8 +5,8 @@ class TableOutput:
             data_i = data_all[idx_data]
             table = data_i['name']
             columns = data_i['columns']
-            for del_or_ins in ['insert', 'delete']:
-                data_d_r_i = data_i['insert'] if del_or_ins == 'insert' else data_i['delete']
+            for op in ['insert', 'delete', 'update']:
+                data_d_r_i = data_i[op]
                 if data_d_r_i:
                     data_2d = [columns] + data_d_r_i
                     len_2d = [[len(data_d0) for data_d0 in data_1d] for data_1d in data_2d]
@@ -24,7 +24,7 @@ class TableOutput:
                         data_2d.insert(i, line)
                         space_2d.insert(i, [0] * len(len_2d[0]))
                     # Print
-                    out = f'{del_or_ins[0].upper() + del_or_ins[1:]} from {table} table\n'
+                    out = f'{op[0].upper() + op[1:]} from {table} table\n'
                     for i, (data_1d, space_1d) in enumerate(zip(data_2d, space_2d)):
                         row, sep = ('+-', '-+-') if i in idx_line else ('| ', ' | ')
                         for data_d0, space_d0 in zip(data_1d, space_1d):
@@ -34,7 +34,7 @@ class TableOutput:
                     print(out)
 
     @staticmethod
-    def fulltable(data_all, dpop):
+    def fulltable(data_all, dbop):
         fulltbls = []
         for idx, di in enumerate(data_all):
             t = {}
@@ -42,12 +42,17 @@ class TableOutput:
             if di.pkidx == -1:
                 t['columns'] = [di.pk] + di.columns
                 t['delete'] = [[di.delete_by_pk[i]] + d for i, d in enumerate(di.delete)]
-                where = dpop.get_key_val_cond(di.columns, di.insert)
-                pks = dpop.select(di.name, [di.pk], where=where)
+                where = dbop.get_key_val_cond(di.columns, di.insert)
+                pks = dbop.select(di.name, [di.pk], where=where)
                 t['insert'] = [pk + ins for pk, ins in zip(pks, di.insert)]
+                #t['update'] = [[di.update_by_pk[i]] + d for i, d in enumerate(di.update)]
+                where = dbop.get_key_val_cond(di.columns, di.update)
+                pks = dbop.select(di.name, [di.pk], where=where)
+                t['update'] = [pk + ins for pk, ins in zip(pks, di.update)]
             else:
                 t['columns'] = di.columns
                 t['insert'] = di.insert
                 t['delete'] = di.delete
+                t['update'] = di.update
             fulltbls.append(t)
         TableOutput.table(fulltbls)

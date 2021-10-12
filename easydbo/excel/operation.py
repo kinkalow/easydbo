@@ -1,7 +1,7 @@
 import openpyxl
 from easydbo import constant
 from easydbo.output.log import Log
-from easydbo.excel.newdata import NewData
+from easydbo.excel.data import normalize
 
 
 class ExcelOperation:
@@ -31,7 +31,7 @@ class ExcelOperation:
         if len(set(idx_valid)) != len(idx_valid):
             Log.error(f'Duplicate column names exist in {self.sheet}(sheet)')
         # Data
-        return NewData(idx_valid, idx_date).normalize(ws, sheet=self.sheet)
+        return normalize(idx_valid, idx_date, ws, sheet=self.sheet)
 
     def check_unique(self, idxes):
         max_len = len(self.data)
