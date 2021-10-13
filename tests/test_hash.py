@@ -1,5 +1,5 @@
 import unittest
-from easydbo.hash import HashCreator, HashDiff
+from easydbo.util.hash import HashCreator, HashDiff
 
 class TestHashDiff(unittest.TestCase):
     def test_hash_diff(self):

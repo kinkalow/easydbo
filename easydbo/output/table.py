@@ -3,12 +3,15 @@ class TableOutput:
     def table(data_all):
         for idx_data in range(len(data_all)):
             data_i = data_all[idx_data]
-            table = data_i['name']
+            title = data_i['title'] if 'title' in data_i else ''
+            name = data_i['name'] if 'name' in data_i else ''
             columns = data_i['columns']
-            for op in ['insert', 'delete', 'update']:
-                data_d_r_i = data_i[op]
-                if data_d_r_i:
-                    data_2d = [columns] + data_d_r_i
+            for op in ['insert', 'delete', 'update', 'select']:
+                if op not in data_i:
+                    continue
+                data_op = data_i[op]
+                if data_op:
+                    data_2d = [columns] + data_op
                     len_2d = [[len(data_d0) for data_d0 in data_1d] for data_1d in data_2d]
                     maxlen_1d = [0] * len(len_2d[0])
                     for len_1d in len_2d:
@@ -24,7 +27,9 @@ class TableOutput:
                         data_2d.insert(i, line)
                         space_2d.insert(i, [0] * len(len_2d[0]))
                     # Print
-                    out = f'{op[0].upper() + op[1:]} from {table} table\n'
+                    out = f'{title}\n' if title \
+                    else f'{op[0].upper() + op[1:]} from {name} table\n' if name \
+                    else ''
                     for i, (data_1d, space_1d) in enumerate(zip(data_2d, space_2d)):
                         row, sep = ('+-', '-+-') if i in idx_line else ('| ', ' | ')
                         for data_d0, space_d0 in zip(data_1d, space_1d):

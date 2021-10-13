@@ -19,6 +19,7 @@ dbop.authenticate()
 tbl = tables[tbl_loader.to_idx(arguments.table)]
 tbls = [tbl]
 
+
 # Target
 tgt_pairs = arguments.pairs
 tgt_cols = tgt_pairs.keys()

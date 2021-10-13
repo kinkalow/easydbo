@@ -2,7 +2,7 @@ from easydbo.init.argument import ArgumentInsertLoader
 from easydbo.init.config import ConfigLoader
 from easydbo.init.table import TableLoader
 from easydbo.database.operation import DatabaseOperation
-from easydbo.hash import get_diff_idx
+from easydbo.util.hash import get_diff_idx
 from easydbo.output.table import TableOutput
 from easydbo.excel.data import normalize, check_data
 

@@ -1,0 +1,18 @@
+[
+  {
+    "name": "human",
+    "sql": "SELECT * FROM human;"
+  },
+  {
+    "name": "cancer",
+    "sql": "SELECT * FROM cancer;"
+  },
+  {
+    "name": "fastq",
+    "sql": "SELECT cancer_path as fastq, human_sex as sex FROM human as h JOIN cancer as c ON h.human_id = c.human_id;"
+  },
+  {
+    "name": "manfastq",
+    "sql": "SELECT cancer_path as man_fastq FROM human as h JOIN cancer as c ON h.human_id = c.human_id WHERE h.human_sex = 'man';"
+  }
+]

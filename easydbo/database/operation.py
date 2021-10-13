@@ -22,27 +22,34 @@ class DatabaseOperation:
         if self.password is None:
             self.password = getpass.getpass('Enter database possword: ')
 
-    #def _select(self, cmd):
-    #    self.cursor.execute(cmd)  # QUESTION: should use multi=True?
-    #    rows = self.cursor.fetchall()
-    #    data = [[str(d) for d in r] for r in rows]
-    #    return data
     def get_key_val_cond(self, keys, vlaues):
         return ' OR '.join([
             '(' + ' AND '.join([f'{k}="{v}"' for k, v in zip(keys, val)]) + ')'
             for val in vlaues])
 
+    def get_current_columns(self):
+        return list(self.cursor.column_names)
+
+    def get_current_statement(self):
+        return self.cursor.statement
+
+    # Select --->
+
+    def _select(self, cmd, ret_flat):
+        self.cursor.execute(cmd)  # QUESTION: should use multi=True?
+        rows = self.cursor.fetchall()
+        return [str(d) for r in rows for d in r] if ret_flat else [[str(d) for d in r] for r in rows]
+
     def select(self, table, columns, where='', ret_flat=False):
         columns = ','.join(columns)
         where = f'WHERE {where}' if where else ''
         cmd = f'SELECT {columns} FROM {table} {where};'
-        self.cursor.execute(cmd)  # QUESTION: should use multi=True?
-        rows = self.cursor.fetchall()
-        if ret_flat:
-            data = [str(d) for r in rows for d in r]
-        else:
-            data = [[str(d) for d in r] for r in rows]
-        return data
+        return self._select(cmd, ret_flat)
+
+    def select_by_cmd(self, cmd, ret_flat=False):
+        return self._select(cmd, ret_flat)
+
+    # <---
 
     def insert(self, table, columns, data):
         '''
