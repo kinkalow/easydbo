@@ -86,11 +86,11 @@ class ArgumentSelectLoader(Base):
         prog = 'easydboselect'
         parser = argparse.ArgumentParser(prog=prog)
         parser.add_argument('--alias', type=str, help='alias name')
+        parser.add_argument('--match', type=str, nargs='+', help='alias name')
         parser.add_argument('--show_alias', action='store_true', help='show alias name and command')
         parser.add_argument('--version', action='version', version=f'{prog}: {__version__}')
         self._args = parser.parse_args()
         self._convert(self._args)
 
     def _convert(self, args):
-        args.alias_name = args.alias
-        del args.alias
+        pass

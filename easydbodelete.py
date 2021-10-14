@@ -7,15 +7,15 @@ from easydbo.output.table import TableOutput
 # Loaders
 arg_loader = ArgumentDeleteLoader()
 cfg_loader = ConfigLoader()
-tbl_loader = TableLoader()
+tableop = TableLoader().get()
 arguments = arg_loader.get()
 configs = cfg_loader.get()
-tables = tbl_loader.get()
+tables = tableop.get_tables()
 # Database
 dbop = DatabaseOperation(configs['database'])
 dbop.authenticate()
 # Tables
-tbl = tables[tbl_loader.to_idx(arguments.table)]
+tbl = tables[tableop.to_idx(arguments.table)]
 tbls = [tbl]
 
 

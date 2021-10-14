@@ -12,10 +12,47 @@ class TableLoader(File):
         path = self.find(self.filename)
         with open(path) as f:
             tables = json.load(f)
-        return [Table(t['name'], t['pk'], t['columns']) for t in tables]
+        return TableOperator([Table(t['name'], t['pk'], t['labels']) for t in tables])
 
     def get(self):
         return self.tables
+
+
+class TableOperator():
+    def __init__(self, tables):
+        self.tables = tables
+
+    # Get --->
+
+    def get_labels(self, flat=False):
+        labels = [t.columns for t in self.tables]
+        if flat:
+            labels = list(set([l0 for l1 in labels for l0 in l1]))
+        return labels
+
+    def get_labels_flat(self):
+        return [t.columns for t in self.tables]
+
+    def get_names(self):
+        return [t.name for t in self.tables]
+
+    def get_names_by_labels(self, target_labels):
+        names = self.get_names()    # 1D_list
+        labels = self.get_labels()  # 2D_list
+        target_names = []
+        for i, tc in enumerate(target_labels):
+            target_names.append([])
+            for j, c in enumerate(labels):
+                if tc in c:
+                    target_names[i].append(names[j])
+            if not target_names[i]:
+                Log.error(f'"{tc}" is not in labels')
+        return target_names  # 2D_list
+
+    def get_tables(self):
+        return [t for t in self.tables]
+
+    # <---
 
     def to_idx(self, target):
         names = [t.name for t in self.tables]
@@ -110,42 +147,42 @@ class Table:
     # <---
     # Property --->
 
-    @property
+    @ property
     def insert(self):
         return self._insert
 
-    @insert.setter
+    @ insert.setter
     def insert(self, data):
         self._insert = data
 
-    @property
+    @ property
     def delete(self):
         return self._delete
 
-    @delete.setter
+    @ delete.setter
     def delete(self, data):
         self._delete = data
 
-    @property
+    @ property
     def delete_by_pk(self):
         return self._delete_by_pk
 
-    @delete_by_pk.setter
+    @ delete_by_pk.setter
     def delete_by_pk(self, data):
         self._delete_by_pk = data
 
-    @property
+    @ property
     def update(self):
         return self._update
 
-    @update.setter
+    @ update.setter
     def update(self, data):
         self._update = data
 
-    @property
+    @ property
     def update_by_pk(self):
         return self._update_by_pk
 
-    @update_by_pk.setter
+    @ update_by_pk.setter
     def update_by_pk(self, data):
         self._update_by_pk = data

@@ -6,6 +6,7 @@ class DatabaseOperation:
     def __init__(self, config):
         self.password = None
         self.config = config
+        self.is_connect = False
 
         self._init()
 
@@ -16,6 +17,7 @@ class DatabaseOperation:
             Log.error('Connection to MySQL server failed')
         self.conn = conn
         self.cursor = conn.cursor(buffered=True)
+        self.is_connect = True
 
     def authenticate(self):
         self.password = ''
@@ -88,10 +90,12 @@ class DatabaseOperation:
         self.cursor.execute(cmd)
 
     def commit(self):
-        self.conn.commit()
+        if self.is_connect:
+            self.conn.commit()
 
     def close(self):
-        self.conn.close()
+        if self.is_connect:
+            self.conn.close()
 
 # create table
 #results = self.cursor.execute(operations, multi=True)

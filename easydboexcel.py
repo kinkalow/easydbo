@@ -10,17 +10,17 @@ from easydbo.excel.operation import ExcelOperation
 # Loaders
 arg_loader = ArgumentLoader()
 cfg_loader = ConfigLoader()
-tbl_loader = TableLoader()
+tableop = TableLoader().get()
 arguments = arg_loader.get()
 configs = cfg_loader.get()
-tables = tbl_loader.get()
+tables = tableop.get_tables()
 # Database
 dbop = DatabaseOperation(configs['database'])
 dbop.authenticate()
 # Tables
 exl_path = arguments.excel_path
 sheets = get_sheet(exl_path)
-tbls = [tables[tbl_loader.to_idx(sheet)] for sheet in sheets]
+tbls = [tables[tableop.to_idx(sheet)] for sheet in sheets]
 
 
 # Get data to insert or delte
