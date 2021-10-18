@@ -12,7 +12,7 @@ class TableLoader(File):
         path = self.find(self.filename)
         with open(path) as f:
             tables = json.load(f)
-        return TableOperator([Table(t['name'], t['pk'], t['labels']) for t in tables])
+        return TableOperator([Table(t['name'], t['pk'], t['columns']) for t in tables])
 
     def get(self):
         return self.tables
@@ -24,29 +24,30 @@ class TableOperator():
 
     # Get --->
 
-    def get_labels(self, flat=False):
-        labels = [t.columns for t in self.tables]
-        if flat:
-            labels = list(set([l0 for l1 in labels for l0 in l1]))
-        return labels
-
-    def get_labels_flat(self):
-        return [t.columns for t in self.tables]
+    def get_columns(self, inculde_names=None):
+        if inculde_names:
+            columns = [t.columns for t in self.tables if t.name in inculde_names]
+        else:
+            columns = [t.columns for t in self.tables]
+        return columns
 
     def get_names(self):
         return [t.name for t in self.tables]
 
-    def get_names_by_labels(self, target_labels):
-        names = self.get_names()    # 1D_list
-        labels = self.get_labels()  # 2D_list
+    def get_names_by_idxes(self, idxes):
+        return [self.tables[i].name for i in idxes]
+
+    def get_names_by_columns(self, target_columns):
+        names = self.get_names()      # 1D_list
+        columns = self.get_columns()  # 2D_list
         target_names = []
-        for i, tc in enumerate(target_labels):
+        for i, tc in enumerate(target_columns):
             target_names.append([])
-            for j, c in enumerate(labels):
+            for j, c in enumerate(columns):
                 if tc in c:
                     target_names[i].append(names[j])
             if not target_names[i]:
-                Log.error(f'"{tc}" is not in labels')
+                Log.error(f'"{tc}" is not in columns')
         return target_names  # 2D_list
 
     def get_tables(self):
@@ -147,42 +148,42 @@ class Table:
     # <---
     # Property --->
 
-    @ property
+    @property
     def insert(self):
         return self._insert
 
-    @ insert.setter
+    @insert.setter
     def insert(self, data):
         self._insert = data
 
-    @ property
+    @property
     def delete(self):
         return self._delete
 
-    @ delete.setter
+    @delete.setter
     def delete(self, data):
         self._delete = data
 
-    @ property
+    @property
     def delete_by_pk(self):
         return self._delete_by_pk
 
-    @ delete_by_pk.setter
+    @delete_by_pk.setter
     def delete_by_pk(self, data):
         self._delete_by_pk = data
 
-    @ property
+    @property
     def update(self):
         return self._update
 
-    @ update.setter
+    @update.setter
     def update(self, data):
         self._update = data
 
-    @ property
+    @property
     def update_by_pk(self):
         return self._update_by_pk
 
-    @ update_by_pk.setter
+    @update_by_pk.setter
     def update_by_pk(self, data):
         self._update_by_pk = data

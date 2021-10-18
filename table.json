@@ -2,7 +2,7 @@
   {
     "name"   : "human",
     "pk"     : "human_id",
-    "labels": {
+    "columns": {
       "human_id"         : ["VARCHAR(10)" , "PRIMARY KEY"],
       "center_name"      : ["VARCHAR(100)", "NOT NULL"],
       "project_name"     : ["VARCHAR(100)", "NOT NULL"],
@@ -13,7 +13,7 @@
   {
     "name"   : "cancer",
     "pk"     : "cancer_id",
-    "labels": {
+    "columns": {
       "human_id"           : ["VARCHAR(10)" , "NOT NULL"],
       "cancer_receive_date": ["DATE"        , "NOT NULL"],
       "cancer_path"        : ["VARCHAR(300)", "NOT NULL"]
@@ -22,7 +22,7 @@
   {
     "name"   : "bam",
     "pk"     : "human_id",
-    "labels": {
+    "columns": {
       "human_id"       : ["VARCHAR(10)" , "PRIMARY KEY"],
       "bam_create_date": ["DATE"        , "NOT NULL"],
       "bam_path"       : ["VARCHAR(300)", "NOT NULL"]
@@ -31,7 +31,7 @@
   {
     "name"   : "vcf",
     "pk"     : "human_id",
-    "labels": {
+    "columns": {
       "human_id"       : ["VARCHAR(10)" , "PRIMARY KEY"],
       "vcf_create_date": ["DATE"        , "NOT NULL"],
       "vcf_path"       : ["VARCHAR(300)", "NOT NULL"]
