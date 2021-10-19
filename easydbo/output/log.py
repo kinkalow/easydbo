@@ -8,3 +8,7 @@ class Log:
         elif isinstance(msg, str):
             print(f'[Error] {msg}')
         exit(1)
+
+    @staticmethod
+    def info(msg):
+        print(msg)

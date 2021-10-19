@@ -25,10 +25,10 @@ class TableOperator():
     # Get --->
 
     def get_columns(self, inculde_names=None):
-        if inculde_names:
-            columns = [t.columns for t in self.tables if t.name in inculde_names]
-        else:
+        if inculde_names is None:
             columns = [t.columns for t in self.tables]
+        else:
+            columns = [t.columns for t in self.tables if t.name in inculde_names]
         return columns
 
     def get_names(self):

@@ -1,3 +1,5 @@
+from easydbo.output.log import Log
+
 class TableOutput:
     @staticmethod
     def table(data_all):
@@ -36,7 +38,7 @@ class TableOutput:
                             row += f'{" " * space_d0}{data_d0}{sep}'
                         row = row[:-1]
                         out += row + "\n"
-                    print(out)
+                    Log.info(out)
 
     @staticmethod
     def fulltable(data_all, dbop):

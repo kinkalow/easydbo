@@ -1,4 +1,5 @@
 from easydbo.init.alias import AliasLoader
+from easydbo.output.log import Log
 
 def main(arguments, configs, tableop, dbop):
     alias_loader = AliasLoader()
@@ -6,8 +7,7 @@ def main(arguments, configs, tableop, dbop):
     # Check
     tgt_alias_name = arguments.alias
     if not tgt_alias_name:
-        print('--alias option is required at this time')
-        exit()
+        Log.error('--alias option is required at this time')
     alias_loader.check_alias_name(tgt_alias_name)
 
     # Access database
