@@ -1,6 +1,7 @@
 import argparse
 import os
 from easydbo import __version__
+from easydbo.output.log import Log
 
 
 class Base:
@@ -83,14 +84,29 @@ class ArgumentSelectLoader(Base):
         self._parse()
 
     def _parse(self):
+        targets = ['alias', 'match', 'show_alias', 'sql']
+        import sys
+        argvs = sys.argv[1:]
+        if not argvs or argvs[0] not in targets:
+            Log.error(f'First argument is choice of {targets}')
+
         prog = 'easydboselect'
         parser = argparse.ArgumentParser(prog=prog)
-        parser.add_argument('--alias', type=str, help='alias name')
-        parser.add_argument('--match', type=str, nargs='+', help='alias name')
-        parser.add_argument('--show_alias', action='store_true', help='show alias name and command')
         parser.add_argument('--version', action='version', version=f'{prog}: {__version__}')
-        self._args = parser.parse_args()
-        self._convert(self._args)
+        subparsers = parser.add_subparsers()
 
-    def _convert(self, args):
-        pass
+        alias_parser = subparsers.add_parser('alias', help='alias for SELECT statement in SQL')
+        alias_parser.add_argument('name', type=str, help='alias name')
+
+        match_parser = subparsers.add_parser('match', help='simple selection query')
+        match_parser.add_argument('columns', nargs='?', type=str, default='*', help='SELECT clause in SQL')
+        match_parser.add_argument('conditions', nargs='?', type=str, default='', help='WHERE clause in SQL')
+        match_parser.add_argument('tables', nargs='?', type=str, default='', help='FROM clause in SQL')
+
+        subparsers.add_parser('show_alias', help="show alias name and it's query")
+
+        sql_parser = subparsers.add_parser('sql', help='selection query')
+        sql_parser.add_argument('sql', type=str, help='SELECT statement in SQL')
+
+        self._args = parser.parse_args(argvs)
+        self._args.operation = argvs[0]

@@ -7,7 +7,7 @@ class DatabaseOperation:
         self.password = None
         self.config = config
         self.is_connect = False
-
+        #
         self._init()
 
     def _init(self):
@@ -24,6 +24,8 @@ class DatabaseOperation:
         if self.password is None:
             self.password = getpass.getpass('Enter database possword: ')
 
+    # Get --->
+
     def get_key_val_cond(self, keys, vlaues):
         return ' OR '.join([
             '(' + ' AND '.join([f'{k}="{v}"' for k, v in zip(keys, val)]) + ')'
@@ -35,10 +37,11 @@ class DatabaseOperation:
     def get_current_statement(self):
         return self.cursor.statement
 
+    # <---
     # Select --->
 
     def _select(self, cmd, ret_flat):
-        self.cursor.execute(cmd)  # QUESTION: should use multi=True?
+        self.execute(cmd)
         rows = self.cursor.fetchall()
         return [str(d) for r in rows for d in r] if ret_flat else [[str(d) for d in r] for r in rows]
 
@@ -52,6 +55,7 @@ class DatabaseOperation:
         return self._select(cmd, ret_flat)
 
     # <---
+    # Insert --->
 
     def insert(self, table, columns, data):
         '''
@@ -62,6 +66,9 @@ class DatabaseOperation:
         col_str = ','.join(columns)
         cmd = f'INSERT INTO {table}({col_str}) VALUES ({("%s, "*len(data[0]))[:-2]});'
         self.cursor.executemany(cmd, data)
+
+    # <---
+    # Delete --->
 
     def delete_by_pk(self, table, pk, pvs):
         '''
@@ -75,7 +82,10 @@ class DatabaseOperation:
 
     def delete(self, table, where=''):
         cmd = f'DELETE FROM {table} WHERE {where};'
-        self.cursor.execute(cmd)
+        self.execute(cmd)
+
+    # <---
+    # Update --->
 
     def update(self, table, cols_vals, pn, pv):
         '''
@@ -87,7 +97,9 @@ class DatabaseOperation:
         set_ = ', '.join([f'{c}="{v}"' for c, v in cols_vals.items()])
         where = f'{pn}={pv}'
         cmd = f'UPDATE {table} SET {set_} WHERE {where};'
-        self.cursor.execute(cmd)
+        self.execute(cmd)
+
+    # <---
 
     def commit(self):
         if self.is_connect:
@@ -97,7 +109,10 @@ class DatabaseOperation:
         if self.is_connect:
             self.conn.close()
 
-# create table
-#results = self.cursor.execute(operations, multi=True)
-#for r in results:
-#    print(r)
+    def execute(self, cmd, multi=False):
+        try:
+            self.cursor.execute(cmd, multi)
+        except Exception as e:
+            self.close()
+            errs = [str(e), f'<QUERRY> {cmd}']
+            Log.error(errs, traceback=True)

@@ -24,42 +24,38 @@ class TableOperator():
 
     # Get --->
 
-    def get_columns(self, inculde_names=None):
-        if inculde_names is None:
-            columns = [t.columns for t in self.tables]
-        else:
-            columns = [t.columns for t in self.tables if t.name in inculde_names]
-        return columns
-
-    def get_names(self):
-        return [t.name for t in self.tables]
-
-    def get_names_by_idxes(self, idxes):
-        return [self.tables[i].name for i in idxes]
-
-    def get_names_by_columns(self, target_columns):
-        names = self.get_names()      # 1D_list
-        columns = self.get_columns()  # 2D_list
-        target_names = []
-        for i, tc in enumerate(target_columns):
-            target_names.append([])
-            for j, c in enumerate(columns):
-                if tc in c:
-                    target_names[i].append(names[j])
-            if not target_names[i]:
-                Log.error(f'"{tc}" is not in columns')
-        return target_names  # 2D_list
+    def get_columns(self):
+        return [t.columns for t in self.tables]
 
     def get_tables(self):
         return [t for t in self.tables]
 
+    def get_tnames(self):
+        return [t.name for t in self.tables]
+
+    #def get_tnames_by_idxes(self, idxes):
+    #    return [self.tables[i].name for i in idxes]
+
+    #def get_tnames_by_columns(self, target_columns):
+    #    tnames = self.get_tnames()    # 1D_list
+    #    columns = self.get_columns()  # 2D_list
+    #    target_tnames = []
+    #    for i, tc in enumerate(target_columns):
+    #        target_tnames.append([])
+    #        for j, c in enumerate(columns):
+    #            if tc in c:
+    #                target_tnames[i].append(tnames[j])
+    #        if not target_tnames[i]:
+    #            Log.error(f'"{tc}" is not in columns')
+    #    return target_tnames  # 2D_list
+
     # <---
 
     def to_idx(self, target):
-        names = [t.name for t in self.tables]
-        idx = names.index(target)
+        tnames = [t.name for t in self.tables]
+        idx = tnames.index(target)
         if idx == -1:
-            Log.error(f'Sheet name must be one of the following: {names}')
+            Log.error(f'Sheet name must be one of the following: {tnames}')
         return idx
 
 

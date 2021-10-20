@@ -5,7 +5,7 @@ def main(arguments, configs, tableop, dbop):
     alias_loader = AliasLoader()
 
     # Check
-    tgt_alias_name = arguments.alias
+    tgt_alias_name = arguments.name
     if not tgt_alias_name:
         Log.error('--alias option is required at this time')
     alias_loader.check_alias_name(tgt_alias_name)
