@@ -24,8 +24,19 @@ class TableOperator():
 
     # Get --->
 
-    def get_columns(self):
-        return [t.columns for t in self.tables]
+    def get_columns(self, targets=None):
+        if targets is None:
+            return [t.columns for t in self.tables]
+        else:
+            cols = []
+            for tgt in targets:
+                for t in self.tables:
+                    if t.name == tgt:
+                        cols.append(t.columns)
+                        break
+                else:
+                    Log.error(f'"{tgt}" is not table name')
+            return cols
 
     def get_tables(self):
         return [t for t in self.tables]

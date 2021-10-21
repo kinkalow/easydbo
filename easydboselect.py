@@ -9,13 +9,13 @@ configs = ConfigLoader().get()
 tableop = TableLoader().get()
 dbop = DatabaseOperation(configs['database'])
 
-if arguments.operation == 'alias':
+if arguments.main == 'alias':
     from easydbo.main.select.alias import main
-elif arguments.operation == 'match':
+elif arguments.main == 'match':
     from easydbo.main.select.match import main
-elif arguments.operation == 'show_alias':
+elif arguments.main == 'show_alias':
     from easydbo.main.select.show_alias import main
-elif arguments.operation == 'sql':
+elif arguments.main == 'sql':
     from easydbo.main.select.sql import main
 
 title, columns, rows = main(arguments, configs, tableop, dbop)

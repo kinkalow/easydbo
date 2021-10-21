@@ -82,13 +82,13 @@ class ArgumentUpdateLoader(Base):
 class ArgumentSelectLoader(Base):
     def __init__(self):
         self._parse()
+        self._check()
 
     def _parse(self):
-        targets = ['alias', 'match', 'show_alias', 'sql']
-        import sys
-        argvs = sys.argv[1:]
-        if not argvs or argvs[0] not in targets:
-            Log.error(f'First argument is choice of {targets}')
+        class MatchColumns(argparse.Action):
+            def __call__(self, parser, namespace, values, option_string=None):
+                setattr(namespace, self.dest, values.strip()) if values else \
+                setattr(namespace, self.dest, '*')
 
         prog = 'easydboselect'
         parser = argparse.ArgumentParser(prog=prog)
@@ -99,7 +99,7 @@ class ArgumentSelectLoader(Base):
         alias_parser.add_argument('name', type=str, help='alias name')
 
         match_parser = subparsers.add_parser('match', help='simple selection query')
-        match_parser.add_argument('columns', nargs='?', type=str, default='*', help='SELECT clause in SQL')
+        match_parser.add_argument('columns', nargs='?', action=MatchColumns, type=str, help='SELECT clause in SQL')
         match_parser.add_argument('conditions', nargs='?', type=str, default='', help='WHERE clause in SQL')
         match_parser.add_argument('tables', nargs='?', type=str, default='', help='FROM clause in SQL')
 
@@ -108,5 +108,13 @@ class ArgumentSelectLoader(Base):
         sql_parser = subparsers.add_parser('sql', help='selection query')
         sql_parser.add_argument('sql', type=str, help='SELECT statement in SQL')
 
+        import sys
+        argvs = sys.argv[1:]
         self._args = parser.parse_args(argvs)
-        self._args.operation = argvs[0]
+        self._args.main = argvs[0]
+
+    def _check(self):
+        args = self._args
+        if args.main == 'match':
+            if args.columns == '*' and not args.conditions and not args.tables:
+                Log.error('Second or third argument must be specified')
