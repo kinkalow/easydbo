@@ -2,6 +2,9 @@ import re
 from easydbo.output.log import Log
 from easydbo.main.select.sql import execute_query
 
+def _create_sql(sql_select, sql_from, sql_where):
+    return f'{sql_select} {sql_from} {sql_where}'.strip() + ';'
+
 def main(arguments, configs, tableop, dbop):
     arg_cols = arguments.columns.strip()
     arg_conds = arguments.conditions.strip()
@@ -11,7 +14,7 @@ def main(arguments, configs, tableop, dbop):
     #    tables = ' NATURAL JOIN '.join([s.strip() for s in arg_cols[1:].split(',')])
     #    sql = f'SELECT * FROM {tables};'
 
-    # Create selection querry
+    # Create selection query
     # SELECT <columns> FROM <tables> WHERE <condtions>
 
     sql_pre = []
@@ -26,6 +29,8 @@ def main(arguments, configs, tableop, dbop):
     # Create sql tables
     if arg_tbls:
         sql_from = f'FROM {arg_tbls}' if arg_tbls else ''
+        sql = _create_sql(sql_select, sql_from, sql_where)
+        return execute_query(dbop, sql)
 
     else:
         # Determine tables from arg_cols and arg_tbls
@@ -82,58 +87,72 @@ def main(arguments, configs, tableop, dbop):
         if not tgt_tnames:
             Log.error('Could not guess table names')
 
-        # Create view tables
+        if len(tgt_tnames) == 1:
+            sql_from = f'FROM {tgt_tnames[0]}'
+            sql = _create_sql(sql_select, sql_from, sql_where)
+            return execute_query(dbop, sql)
+
+        # If there are multiple target tables, perform full outer join
+
+        # Determine order to join
         t_col2d = tableop.get_columns(tgt_tnames)
-        if len(t_col2d) > 1:
-            from datetime import datetime
-            view_name_base = f"view_{datetime.now().strftime('%Y%m%d%H%M%S')}"
-            view_names = []
-            view_cols = []
-            for i in range(len(t_col2d) - 1):
-                view_names.append(f'{view_name_base}_{i}')
-                view_cols.append(t_col2d[0] if i == 0 else view_cols[i - 1][:])
-                has_common_column = False
-                for c in t_col2d[i + 1]:
-                    if c in view_cols[i]:
-                        has_common_column = True
-                    else:
-                        view_cols[i].append(c)
-                if not has_common_column:
-                    Log.error(f'Cannot join tables because {tgt_tnames} tables have no common column names')
-            view_cols = [','.join(v) for v in view_cols]
-            view_tbls = [(tgt_tnames[i], tgt_tnames[i + 1]) if i == 0 else
-                         (view_names[i - 1], tgt_tnames[i + 1]) for i in range(len(t_col2d) - 1)]
-            sql_pre = [f'''
+        cols = set(t_col2d[0])
+        cands = list(range(1, len(t_col2d)))
+        orders = [0]
+        while cands:
+            for cand in cands:
+                if cols.intersection(t_col2d[cand]):
+                    cols = cols.union(t_col2d[cand])
+                    cands.remove(cand)
+                    orders.append(cand)
+                    break
+            else:
+                Log.error(f'{tgt_tnames} tables do not have common column names')
+        if orders != list(range(len(t_col2d))):
+            tgt_tnames = [tgt_tnames[i] for i in orders]
+            t_col2d = tableop.get_columns(tgt_tnames)
+
+        # Create view columns and tables
+        from datetime import datetime
+        view_name_base = f"easydbo_tmpview_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        view_names = [f'{view_name_base}_{i}' for i in range(len(t_col2d) - 1)]
+        view_cols = []
+        for i in range(len(t_col2d) - 1):
+            view_cols.append(t_col2d[0] if i == 0 else view_cols[i - 1][:])
+            for c in t_col2d[i + 1]:
+                if c not in view_cols[i]:
+                    view_cols[i].append(c)
+        view_cols = [','.join(v) for v in view_cols]
+        view_tbls = [(tgt_tnames[i], tgt_tnames[i + 1]) if i == 0 else
+                     (view_names[i - 1], tgt_tnames[i + 1]) for i in range(len(t_col2d) - 1)]
+
+        # Create view SQL
+        sql_pre = [f'''
 CREATE VIEW {view_names[i]} AS
 SELECT {view_cols[i]} FROM {view_tbls[i][0]} NATURAL LEFT JOIN {view_tbls[i][1]}
 UNION
 SELECT {view_cols[i]} FROM {view_tbls[i][0]} NATURAL RIGHT JOIN {view_tbls[i][1]};
 '''.replace('\n', ' ').strip() for i in range(len(view_cols))]
-            sql_post = [f'DROP VIEW {view_names[i]};' for i in range(len(view_names))]
-            sql_from = f'FROM {view_names[-1]}'
+        sql_post = [f'DROP VIEW IF EXISTS {view_names[i]};' for i in range(len(view_names))]
 
-            # change
-            for f, t in rename1:
-                print(f, t, sql_select)
-                sql_select = sql_select.replace(f, t)
-                sql_where = sql_where.replace(f, t)
-            for f, t in rename2:
-                sql_select = sql_select.replace(f, t)
-                sql_where = sql_where.replace(f, t)
+        # Create selection SQL
+        sql_from = f'FROM {view_names[-1]}'
+        for f, t in rename1:
+            sql_select = sql_select.replace(f, t)
+        for f, t in rename2:
+            sql_where = sql_where.replace(f, t)
+        sql = _create_sql(sql_select, sql_from, sql_where)
 
-        else:
-            sql_from = f'FROM {tgt_tnames[0]}'
-
-    sql = f'{sql_select} {sql_from} {sql_where}'.strip() + ';'
-
-    # Access database
-    if sql_pre:
+        # Access database
+        def on_query_error():
+            for s in sql_post:
+                dbop.execute(s)
         dbop.authenticate()
-        for s in sql_pre:
-            dbop.execute(s)
-        res = execute_query(dbop, sql)
-        for s in sql_post:
-            dbop.execute(s)
-        return res
-    else:
-        return execute_query(dbop, sql)
+        dbop.set_query_error_func(on_query_error)
+        try:
+            for s in sql_pre:
+                dbop.execute(s)
+            return execute_query(dbop, sql)
+        finally:
+            on_query_error()
+            dbop.set_query_error_func()

@@ -7,6 +7,7 @@ class DatabaseOperation:
         self.password = None
         self.config = config
         self.is_connect = False
+        self.on_query_error = None
         #
         self._init()
 
@@ -113,6 +114,11 @@ class DatabaseOperation:
         try:
             self.cursor.execute(cmd, multi)
         except Exception as e:
+            if self.on_query_error:
+                self.on_query_error()
             self.close()
             errs = [str(e), f'<QUERRY> {cmd}']
             Log.error(errs, traceback=True)
+
+    def set_query_error_func(self, f=None):
+        self.on_query_error = f
