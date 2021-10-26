@@ -42,8 +42,7 @@ class DatabaseOperation:
     # Select --->
 
     def _select(self, cmd, ret_flat):
-        self.execute(cmd)
-        rows = self.cursor.fetchall()
+        rows = self.execute(cmd, ret=True)
         return [str(d) for r in rows for d in r] if ret_flat else [[str(d) for d in r] for r in rows]
 
     def select(self, table, columns, where='', ret_flat=False):
@@ -110,9 +109,11 @@ class DatabaseOperation:
         if self.is_connect:
             self.conn.close()
 
-    def execute(self, cmd, multi=False):
+    def execute(self, cmd, multi=False, ret=False):
         try:
             self.cursor.execute(cmd, multi)
+            if ret:
+                return self.cursor.fetchall()
         except Exception as e:
             if self.on_query_error:
                 self.on_query_error()
@@ -120,5 +121,5 @@ class DatabaseOperation:
             errs = [str(e), f'<QUERRY> {cmd}']
             Log.error(errs, traceback=True)
 
-    def set_query_error_func(self, f=None):
+    def set_query_error(self, f=None):
         self.on_query_error = f

@@ -1,7 +1,7 @@
 import argparse
 import os
 from easydbo import __version__
-from easydbo.output.log import Log
+#from easydbo.output.log import Log
 
 
 class Base:
@@ -82,7 +82,6 @@ class ArgumentUpdateLoader(Base):
 class ArgumentSelectLoader(Base):
     def __init__(self):
         self._parse()
-        self._check()
 
     def _parse(self):
         class MatchColumns(argparse.Action):
@@ -112,9 +111,3 @@ class ArgumentSelectLoader(Base):
         argvs = sys.argv[1:]
         self._args = parser.parse_args(argvs)
         self._args.main = argvs[0]
-
-    def _check(self):
-        args = self._args
-        if args.main == 'match':
-            if args.columns == '*' and not args.conditions and not args.tables:
-                Log.error('Second or third argument must be specified')
