@@ -30,7 +30,7 @@ class TableOutput:
                         space_2d.insert(i, [0] * len(len_2d[0]))
                     # Print
                     out = f'{title}\n' if title \
-                    else f'{op[0].upper() + op[1:]} from {name} table\n' if name \
+                    else f'[{op[0].upper() + op[1:]}] Table={name}\n' if name \
                     else ''
                     for i, (data_1d, space_1d) in enumerate(zip(data_2d, space_2d)):
                         row, sep = ('+-', '-+-') if i in idx_line else ('| ', ' | ')

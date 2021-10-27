@@ -9,7 +9,7 @@ class Base:
         return self._args
 
 
-class ArgumentLoader(Base):
+class ArgumentExcelLoader(Base):
     def __init__(self):
         self._parse()
 

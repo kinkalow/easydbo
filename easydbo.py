@@ -1,13 +1,15 @@
-from easydbo.init.argument import ArgumentLoader
-from easydbo.init.config import ConfigLoader
-from easydbo.init.table import TableLoader
-from easydbo.database.operation import DatabaseOperation
-from easydbo.excel.util import get_sheet
-from easydbo.excel.operation import ExcelOperation
-from easydbo.util.hash import HashCreator, HashDiff
-from easydbo.output.table import TableOutput
+import sys
+from easydbo.output.log import Log
 
-# Load
-while True:
-    inp = input("Choose 'select', 'insert', 'delete', 'update': ")
-    print(inp)
+argv1 = ['delete', 'excel', 'insert', 'select', 'update']
+if len(sys.argv) < 2 or sys.argv[1] not in argv1:
+    Log.error(f"Argument1 must be {str(argv1)[1:-1]}, or '{argv1[-1]}'")
+
+operation = sys.argv[1]
+sys.argv.remove(operation)
+if operation == 'select':
+    from easydbo.main.select.facade import facade
+    facade()
+else:
+    from easydbo.main.modify.facade import facade
+    facade(operation)
