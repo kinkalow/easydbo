@@ -13,10 +13,7 @@ def main(arguments, configs, tableop, dbop):
     check_data(dbop, tbl, new_data)
 
     # Get database data
-    db_columns = [tbl.pk] + tbl.columns if tbl.pkidx == -1 else tbl.columns
-    db_data = dbop.select(tbl.name, db_columns)
-    if tbl.pkidx == -1:
-        [d.pop(0) for d in db_data]  # Pop primary values
+    db_data = dbop.select(tbl.name, tbl.columns)
 
     # Get indexes with no common data
     new_diffidx = get_diff_idx(new_data, db_data)[0]

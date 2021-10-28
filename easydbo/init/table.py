@@ -1,4 +1,5 @@
 import json
+import re
 from easydbo.init.file import File
 from easydbo.output.log import Log
 
@@ -12,7 +13,7 @@ class TableLoader(File):
         path = self.find(self.filename)
         with open(path) as f:
             tables = json.load(f)
-        return TableOperator([Table(t['name'], t['pk'], t['columns']) for t in tables])
+        return TableOperator([Table(t['name'], t['pkauto'], t['columns']) for t in tables])
 
     def get(self):
         return self.tables
@@ -24,15 +25,16 @@ class TableOperator():
 
     # Get --->
 
-    def get_columns(self, targets=None):
+    def get_columns(self, targets=None, full=False):
         if targets is None:
-            return [t.columns for t in self.tables]
+            return [t.fullcolumns for t in self.tables] if full else \
+                   [t.columns for t in self.tables]
         else:
             cols = []
             for tgt in targets:
                 for t in self.tables:
                     if t.name == tgt:
-                        cols.append(t.columns)
+                        cols.append(t.fullcolumns) if full else cols.append(t.columns)
                         break
                 else:
                     Log.error(f'"{tgt}" is not table name')
@@ -71,16 +73,22 @@ class TableOperator():
 
 
 class Table:
-    def __init__(self, name, pk, columns_info):
+    def __init__(self, name, pkauto, columns_info):
         self.name = name
-        self.pk = pk
-        self.columns, self.type, self.attr = self._split_colinfo(columns_info)
+        self.pkauto = pkauto
+        self.fullcolumns, self.types, self.attrs = self._split_colinfo(columns_info)
         #
-        self.pkidx = self.name_to_idx(pk)
-        self.auto_pk = self._get_auto_pk_info(self.pkidx, pk)
-        self.attr = self._add_pk_to_attr(self.pkidx, self.attr)
-        self.attr_null = self._attr_null(self.attr)
-        self.attr_unique = self._attr_unique(self.attr)
+        self.pkidx, self.pk = self._get_pk(name, self.fullcolumns, self.attrs)
+        if pkauto:
+            self.columns = [c for i, c in enumerate(self.fullcolumns) if i != self.pkidx]
+            self.types = [c for i, c in enumerate(self.types) if i != self.pkidx]
+            self.attrs = [c for i, c in enumerate(self.attrs) if i != self.pkidx]
+        else:
+            self.columns = self.fullcolumns
+        #self.auto_pk = self._get_auto_pk_info(self.pkidx, self.pk)
+        #self.attrs = self._add_pk_to_attr(self.pkidx, self.attrs)
+        self.attr_null = self._attr_null(self.attrs)
+        self.attr_unique = self._attr_unique(self.attrs)
         #
         self._insert = []
         self._delete = []
@@ -93,32 +101,40 @@ class Table:
     def _split_colinfo(self, columns_info):
         columns = list(columns_info.keys())
         type_ = [c[0] for c in columns_info.values()]
-        attr = [c[1] for c in columns_info.values()]
-        return columns, type_, attr
+        attrs = [c[1] for c in columns_info.values()]
+        return columns, type_, attrs
 
-    def _get_auto_pk_info(self, pkidx, pk):
-        return {
-            'columns': pkidx,
-            'type': 'INTEGER UNSIGNED',
-            'attr': 'PRIMARY KEY AUTO INCREMENT'
-        } if pkidx == -1 and pk else {}
+    def _get_pk(self, name, cols, attrs):
+        match = [(i, c) for i, (c, a) in enumerate(zip(cols, attrs)) if re.search(r'PRIMARY\s+KEY', a)]
+        if len(match) != 1:
+            Log.error(f'Table "{name}" must have one "PRIMARY KEY"')
+        if match[0][0] != 0:
+            Log.error('First column must have PRIMARY KEY')
+        return match[0][0], match[0][1]
 
-    def _add_pk_to_attr(self, pkidx, attr):
-        if pkidx != -1 and 'PRIMARY KEY' not in attr[pkidx]:
-            space = ' ' if len(attr[pkidx]) > 0 else ''
-            attr[pkidx] = f'PRIMARY KEY{space}{attr[pkidx]}'
-        return attr
+    #def _get_auto_pk_info(self, pkidx, pk):
+    #    return {
+    #        'columns': pkidx,
+    #        'type': 'INTEGER UNSIGNED',
+    #        'attr': 'PRIMARY KEY AUTO INCREMENT'
+    #    } if pkidx == -1 and pk else {}
 
-    def _attr_null(self, attr):
-        return [False if 'NOT NULL' in a or 'PRIMARY KEY' in a else True for a in attr]
+    #def _add_pk_to_attr(self, pkidx, attrs):
+    #    if pkidx != -1 and 'PRIMARY KEY' not in attrs[pkidx]:
+    #        space = ' ' if len(attrs[pkidx]) > 0 else ''
+    #        attrs[pkidx] = f'PRIMARY KEY{space}{attrs[pkidx]}'
+    #    return attrs
 
-    def _attr_unique(self, attr):
-        return [True if 'UNIQUE' in a or 'PRIMARY KEY' in a else False for a in attr]
+    def _attr_null(self, attrs):
+        return [False if 'NOT NULL' in a or 'PRIMARY KEY' in a else True for a in attrs]
+
+    def _attr_unique(self, attrs):
+        return [True if 'UNIQUE' in a or 'PRIMARY KEY' in a else False for a in attrs]
 
     # <---
 
     def get_cols_date(self):
-        return [self.columns[i] for i, t in enumerate(self.type) if t == 'DATE']
+        return [self.columns[i] for i, t in enumerate(self.types) if t == 'DATE']
 
     def get_cols_null(self):
         return [self.columns[i] for i, t_or_f in enumerate(self.attr_null) if t_or_f]

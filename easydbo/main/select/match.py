@@ -2,12 +2,12 @@ import re
 from easydbo.output.log import Log
 from easydbo.main.select.sql import execute_query
 
-_VIEW_PREFIX = 'easydbo_tmpview'
+_VIEW_PREFIX = '__easydbo_tmpview'
 
 # NOTE: This is a simple algorithm
 def _guess_tables(tableop, str_):
-    tname1d = tableop.get_tnames()  # Table names list
-    col2d = tableop.get_columns()   # Columns list
+    tname1d = tableop.get_tnames()          # Table names list
+    col2d = tableop.get_columns(full=True)  # Columns list
 
     # Find strings of form 'table.column' or 'column'
     tnames_cols = [s for s in re.split(r'[^\w\.]', str_) if s]
@@ -43,7 +43,7 @@ def _guess_tables(tableop, str_):
     return tnames, renames
 
 def _sort_tables_in_join_order(tnames, tableop):
-    col2d = tableop.get_columns(tnames)
+    col2d = tableop.get_columns(tnames, full=True)
     # Determine order to join
     cols = set(col2d[0])
     cands = list(range(1, len(col2d)))
@@ -62,11 +62,12 @@ def _sort_tables_in_join_order(tnames, tableop):
     return tnames
 
 def _create_view_sql(tnames, tableop):
-    col2d = tableop.get_columns(tnames)
+    col2d = tableop.get_columns(tnames, full=True)
 
     # Create column and table list for view SQL
-    from datetime import datetime
-    view_base = f"{_VIEW_PREFIX}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    #from datetime import datetime
+    #view_base = f"{_VIEW_PREFIX}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    view_base = _VIEW_PREFIX
     view_names = [f'{view_base}_{i}' for i in range(len(col2d) - 1)]
     view_cols = []
     for i in range(len(col2d) - 1):

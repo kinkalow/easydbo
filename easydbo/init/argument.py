@@ -16,7 +16,6 @@ class ArgumentExcelLoader(Base):
     def _parse(self):
         prog = 'easydboexcel'
         parser = argparse.ArgumentParser(prog=prog)
-        #parser.add_argument('operation', type=str, choices=['bam', 'excel', 'vcf', 'search'], help="choose 'bam', 'excel', 'vcf', or 'search'")
         parser.add_argument('excel_path', type=str, help='excel path')
         parser.add_argument('--reset', type=bool, help='reset the elements in the id column to continuous values')
         parser.add_argument('--version', action='version', version=f'{prog}: {__version__}')

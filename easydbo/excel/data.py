@@ -25,7 +25,7 @@ class DataNormalizer:
                 try:
                     w[i].value = datetime.strptime(w[i].value, constant.DATE_FORMAT)
                 except ValueError:
-                    Log.error(f'"{w[i].value}" must be changed to match the following format "{constant.DATE_FORMAT}"')
+                    Log.error(f'"{w[i].value}" must be in the format of "{constant.DATE_FORMAT}"')
         self.is_ws_changed = True
         return ws
 
@@ -90,7 +90,7 @@ class DataChecker:
                 elif v == constant.NAN_STR:
                     Log.error(f'"{table.columns[i]}" filed must not be null')
 
-def check_data(dpop, table, data, except_idxes=[]):
-    dc = DataChecker(dpop)
+def check_data(dbop, table, data, except_idxes=[]):
+    dc = DataChecker(dbop)
     dc.unique(table, data, except_idxes)
     dc.null(table, data, except_idxes)
