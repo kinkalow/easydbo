@@ -100,9 +100,9 @@ class Table:
 
     def _split_colinfo(self, columns_info):
         columns = list(columns_info.keys())
-        type_ = [c[0] for c in columns_info.values()]
+        types = [c[0] for c in columns_info.values()]
         attrs = [c[1] for c in columns_info.values()]
-        return columns, type_, attrs
+        return columns, types, attrs
 
     def _get_pk(self, name, cols, attrs):
         match = [(i, c) for i, (c, a) in enumerate(zip(cols, attrs)) if re.search(r'PRIMARY\s+KEY', a)]

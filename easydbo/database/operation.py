@@ -61,7 +61,7 @@ class DatabaseOperation:
         '''
         table  : str    : table name
         columns: 1D list: column names
-        data   : 1D list: data to input
+        data   : 2D list: data to input
         '''
         col_str = ','.join(columns)
         cmd = f'INSERT INTO {table}({col_str}) VALUES ({("%s, "*len(data[0]))[:-2]});'

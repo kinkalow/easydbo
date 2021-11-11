@@ -14,5 +14,9 @@
   {
     "name": "manfastq",
     "sql": "SELECT cancer_path as man_fastq FROM human as h JOIN cancer as c ON h.human_id = c.human_id WHERE h.human_sex = 'man';"
+  },
+  {
+    "name": "?fastq",
+    "sql": "SELECT ? FROM human as h JOIN cancer as c ON h.human_id = c.human_id WHERE h.human_sex = '?';"
   }
 ]
