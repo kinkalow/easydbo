@@ -8,10 +8,10 @@ class SelectWindow(BaseWindow):
     def __init__(self, winmgr, util):
         BaseWindow.__init__(self)
 
-        # layout
-        self.prefkey_instbl = '_instbl__'
-        self.prefkey_fulljoin = '_fulljoin__'
-        self.prefkey_alias = '_alias__'
+        # Layout
+        self.prefkey_instbl = '_instbl__.'
+        self.prefkey_fulljoin = '_fulljoin__.'
+        self.prefkey_alias = '_alias__.'
         instbl = TableButtonLayout(winmgr, self.prefkey_instbl, util)
         fulljoin = FullJoinTab(winmgr, self.prefkey_fulljoin, util)
         alias = AliasTab(winmgr, self.prefkey_alias, util)
@@ -41,9 +41,5 @@ class SelectWindow(BaseWindow):
     def handle(self, event, values):
         for p, c in self.prefkey_clsobj.items():
             if event.startswith(p):
-                if event == sg.WIN_CLOSED:
-                    c.close()
-                else:
-                    #e, v = c.remove_prefix_key(p, event, values)
-                    c.handle(event, values)
+                c.handle(event, values)
                 break

@@ -6,7 +6,7 @@ class ShowWindow(BaseWindow):
         super().__init__()
         length = len(data[0])
         self.layout = [
-            [sg.Text(f'Querry: {cmd}')],
+            [sg.Text(f'Query: {cmd}')],
             [sg.Table(
             data,
             headings=headings,
@@ -20,14 +20,14 @@ class ShowWindow(BaseWindow):
             )],
         ]
 
-    def __call__(self):
-        if not self.window:
-            self.window = sg.Window(
-                'EasyDBO Result',
-                self.layout,
-                location=(4500, 200),
-                size=(1000, 300),
-                resizable=True,
-                finalize=True
-            )
-        return self.window
+        self._create()
+
+    def _create(self):
+        self.window = sg.Window(
+            'EasyDBO Result',
+            self.layout,
+            location=(4500, 200),
+            size=(1000, 300),
+            resizable=True,
+            finalize=True
+        )

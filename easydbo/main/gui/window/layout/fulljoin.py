@@ -9,17 +9,17 @@ class FullJoinTab(BaseLayout):
         self.dbop = util.dbop
         self.prefkey = prefkey
 
-        self.key_cols_cbs = [[f'{prefkey}.{t}.{c}.checkbox' for c in util.fullcolumns[i]]
+        self.key_cols_cbs = [[f'{prefkey}{t}.{c}.checkbox' for c in util.fullcolumns[i]]
                              for i, t in enumerate(util.tnames)]
-        self.key_cols_conds = [[f'{prefkey}.{t}.{c}.inputtext' for c in util.fullcolumns[i]]
+        self.key_cols_conds = [[f'{prefkey}{t}.{c}.inputtext' for c in util.fullcolumns[i]]
                                for i, t in enumerate(util.tnames)]
-        self.key_show = f'{prefkey}.show'
-        self.key_clear = f'{prefkey}.clear'
-        self.key_create = f'{prefkey}.create'
-        self.key_save = f'{prefkey}.save'
-        self.key_select = f'{prefkey}.select'
-        self.key_where = f'{prefkey}.where'
-        self.key_query = f'{prefkey}.query'
+        self.key_show = f'{prefkey}show'
+        self.key_clear = f'{prefkey}clear'
+        self.key_create = f'{prefkey}create'
+        self.key_save = f'{prefkey}save'
+        self.key_select = f'{prefkey}select'
+        self.key_where = f'{prefkey}where'
+        self.key_query = f'{prefkey}query'
         #
         self.key_frame = 'key_frame'
 
@@ -93,62 +93,95 @@ class FullJoinTab(BaseLayout):
     def get_layout(self):
         return self.layout
 
+    def handle(self, event, values):
+        event_rmv = self.remove_prefix_key(self.prefkey, event)
+        if event_rmv == 'show':
+            v = self.filter_values_by_prefix_key(self.prefkey, values)
+            self.show(event, v)
+
     def run(self, event, values):
         action = event[1:-1].split('.')[1]
         if action == 'show':
+            self.remove_prefix_key()
             self.show(event, values)
 
     def show(self, event, values):
-        values['_fulljoin__.cancer.cancer_receive_date.checkbox'] = True
-        values['_fulljoin__.cancer.cancer_receive_date.inputtext'] = '>2021-01-01'
+        # Checkboxes
+        cbs = [k for k, v in values.items()
+               if k.endswith('.checkbox') and v]  # k='prefkey.table.column.suffix'
+        cb_tbls = [c.split('.')[1] for c in cbs]
+        cb_cols = [c.split('.')[2] for c in cbs]
 
-        values = [(k, v) for k, v in values.items()
-                  if isinstance(k, str) and k.startswith(f'{self.prefkey}.')]
-        checks = [k for k, v in values
-                  if k.endswith('.checkbox') and v]  # k='prefkey.table.column.suffix'
-        chk_cols = [c.split('.')[2] for c in checks]
-
-        inputs = [(k, v) for k, v in values
+        # Fildes
+        inputs = [(k, v) for k, v in values.items()
                   if k.endswith('.inputtext') and v]
         inp_tbls = [i[0].split('.')[1] for i in inputs]
         inp_cols = [i[0].split('.')[2] for i in inputs]
         inp_conds = [i[1] for i in inputs]
 
-        from easydbo.main.select import match
-
-        class Namespace:
-            def __init__(self, **kwargs):
-                self.__dict__.update(kwargs)
-
-        sel_cols = ', '.join(chk_cols) if chk_cols else '*'
-        sel_conds = []
-        for t, c, conds in zip(inp_tbls, inp_cols, inp_conds):
-            for cs in conds.split(','):
-                if not cs:
-                    continue
-                cond = f'{t}.{c}{cs}'
-                sel_conds.append(cond)
-        sel_conds = ', '.join(sel_conds)
-        arguments = Namespace(columns=sel_cols, conditions=sel_conds, tables='')
-        configs = ''
-        title, columns, rows = match.main(arguments, configs, self.tableop, self.dbop)
-        create_window(self.winmgr, title, columns, rows)
-
-        #cmd = f'SELECT * FROM {table};'
-        #data = self.dbop.execute(cmd, ret=True)
-        #headings = self.tableop.get_columns(targets=[table])[0]
-        #params = {
-        #    'cmd': cmd,
-        #    'data': data,
-        #    'headings': headings,
-        #}
-        #win = ShowWindow(**params)
-        #self.windows.append(win)
-        #win()
+        tnames = set([t for t in cb_tbls + inp_tbls])
+        tnames = [t for t in self.tableop.get_tnames() if t in tnames]  # Sort
+        sql_select = 'SELECT ' + ', '.join([c for t, c in zip(cb_tbls, cb_cols)]) if cb_cols else '*'
+        conds = _parse_condition(inp_tbls, inp_cols, inp_conds)
+        sql_where = 'WHERE ' + ', '.join(conds)
+        title, columns, rows = _query(self.tableop, self.dbop, tnames, sql_select, sql_where)
+        _create_window(self.winmgr, title, columns, rows)
 
 
-def create_window(winmgr, cmd, headings, data):
-    from .show import ShowWindow
+def _parse_condition(inp_tbls, inp_cols, inp_conds):
+    conds = []
+    for t, c, cond1l in zip(inp_tbls, inp_cols, inp_conds):
+        for cond in cond1l.split(','):
+            if not cond:
+                continue
+            condition = f'{c}{cond}'
+            conds.append(condition)
+    return conds
+
+def _check_common_column(tnames, tableop):
+    columns = tableop.get_columns(tnames, full=True)
+    sets = set(columns[0])
+    for i in range(1, len(tnames)):
+        s = set(columns[i])
+        sets = sets.intersection(s)
+        if len(sets) == 0:
+            from easydbo.output.log import Log
+            Log.error(f'"{tnames[i-1]}" and "{tnames[i]}" have no common column')
+
+def _query(tableop, dbop, tnames, sql_select, sql_where):
+    if len(tnames) == 0:
+        return
+
+    elif len(tnames) == 1:
+        sql_from = f'FROM {tnames[0]}'
+
+    else:
+        _check_common_column(tnames, tableop)
+        columns = subquery = ''
+        for i in range(len(tnames) - 1):
+            if i == 0:
+                columnL = tableop.get_columns([tnames[0]], full=True)[0]
+                columnR = tableop.get_columns([tnames[1]], full=True)[0]
+                tableL, tableR = tnames[0], tnames[1]
+            else:
+                columnL = columns
+                columnR = tableop.get_columns([tnames[i + 1]], full=True)[0]
+                tableL, tableR = tnames[1 + i], subquery
+            columns = columnL + [c for c in columnR if c not in columnL]
+            columns_str = ', '.join(columns)
+            subquery = f'''
+(SELECT {columns_str} FROM {tableL} NATURAL LEFT JOIN {tableR}
+UNION
+SELECT {columns_str} FROM {tableL} NATURAL RIGHT JOIN {tableR})_
+'''.strip()
+        subquery = subquery.replace('\n', ' ')
+        sql_from = f'FROM {subquery}'
+
+    sql = f'{sql_select} {sql_from} {sql_where}'.strip() + ';'
+    from easydbo.main.select.sql import execute_query
+    return execute_query(dbop, sql)
+
+def _create_window(winmgr, cmd, headings, data):
+    from ..show import ShowWindow
     win = ShowWindow(cmd=cmd, headings=headings, data=data)
     winmgr.add_window(win)
-    win()
