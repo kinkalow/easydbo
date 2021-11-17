@@ -1,10 +1,13 @@
 import PySimpleGUI as sg
 from .base import BaseLayout
 from .common import Attribution as attr
+from ..select_result import SelectResultWindow
 
 class FullJoinTab(BaseLayout):
     def __init__(self, winmgr, prefkey, util):
         self.winmgr = winmgr
+        self.util = util
+
         self.tableop = util.tableop
         self.dbop = util.dbop
         self.prefkey = prefkey
@@ -106,37 +109,56 @@ class FullJoinTab(BaseLayout):
             self.show(event, values)
 
     def show(self, event, values):
-        # Checkboxes
+        #values['_fulljoin__.human.center_name.checkbox'] = True
+        #values['_fulljoin__.human.project_name.checkbox'] = True
+        #values['_fulljoin__.human.human_cancer_type.checkbox'] = True
+        #values['_fulljoin__.cancer.cancer_receive_date.inputtext'] = '>2021-01-01'
+
+        # Create SELECT clause from checkboxes
         cbs = [k for k, v in values.items()
                if k.endswith('.checkbox') and v]  # k='prefkey.table.column.suffix'
         cb_tbls = [c.split('.')[1] for c in cbs]
         cb_cols = [c.split('.')[2] for c in cbs]
+        sql_select = _create_select_clause(cb_cols)
 
-        # Fildes
+        # Create WHERE clause from input texts
         inputs = [(k, v) for k, v in values.items()
                   if k.endswith('.inputtext') and v]
         inp_tbls = [i[0].split('.')[1] for i in inputs]
         inp_cols = [i[0].split('.')[2] for i in inputs]
         inp_conds = [i[1] for i in inputs]
+        sql_where = _create_where_clause(inp_tbls, inp_cols, inp_conds)
 
-        tnames = set([t for t in cb_tbls + inp_tbls])
-        tnames = [t for t in self.tableop.get_tnames() if t in tnames]  # Sort
-        sql_select = 'SELECT ' + ', '.join([c for t, c in zip(cb_tbls, cb_cols)]) if cb_cols else '*'
-        conds = _parse_condition(inp_tbls, inp_cols, inp_conds)
-        sql_where = 'WHERE ' + ', '.join(conds)
-        title, columns, rows = _query(self.tableop, self.dbop, tnames, sql_select, sql_where)
-        _create_window(self.winmgr, title, columns, rows)
+        # Create FROM clause from checkboxes and input texts
+        sql_from = _create_from_clause(self.tableop, cb_tbls, inp_tbls)
 
+        # Query
+        sql = f'{sql_select} {sql_from} {sql_where}'.rstrip() + ';'
+        from easydbo.main.select.sql import execute_query
+        query, headings, data = execute_query(self.dbop, sql)
 
-def _parse_condition(inp_tbls, inp_cols, inp_conds):
+        # Print data on new Window
+        self.make_result_window(query, headings, data)
+
+    def make_result_window(self, query, headings, data):
+        win = SelectResultWindow(self.winmgr, self.util, query, headings, data)
+        self.winmgr.add_window(win)
+
+def _create_select_clause(cb_cols):
+    tables = ', '.join(cb_cols) if cb_cols else '*'
+    return f'SELECT {tables}'
+
+def _create_where_clause(inp_tbls, inp_cols, inp_conds):
+    if not inp_tbls:
+        return ''
     conds = []
     for t, c, cond1l in zip(inp_tbls, inp_cols, inp_conds):
         for cond in cond1l.split(','):
             if not cond:
                 continue
-            condition = f'{c}{cond}'
+            condition = f'({c}{cond})'
             conds.append(condition)
-    return conds
+    return 'WHERE ' + 'AND '.join(conds)
 
 def _check_common_column(tnames, tableop):
     columns = tableop.get_columns(tnames, full=True)
@@ -148,11 +170,14 @@ def _check_common_column(tnames, tableop):
             from easydbo.output.log import Log
             Log.error(f'"{tnames[i-1]}" and "{tnames[i]}" have no common column')
 
-def _query(tableop, dbop, tnames, sql_select, sql_where):
-    if len(tnames) == 0:
-        return
+def _create_from_clause(tableop, cb_tbls, inp_tbls):
+    if not cb_tbls and not inp_tbls:
+        tnames = tableop.get_tnames()
+    else:
+        tnames = set([t for t in cb_tbls + inp_tbls])
+        tnames = [t for t in tableop.get_tnames() if t in tnames]  # Sort
 
-    elif len(tnames) == 1:
+    if len(tnames) == 1:
         sql_from = f'FROM {tnames[0]}'
 
     else:
@@ -160,28 +185,20 @@ def _query(tableop, dbop, tnames, sql_select, sql_where):
         columns = subquery = ''
         for i in range(len(tnames) - 1):
             if i == 0:
-                columnL = tableop.get_columns([tnames[0]], full=True)[0]
-                columnR = tableop.get_columns([tnames[1]], full=True)[0]
-                tableL, tableR = tnames[0], tnames[1]
+                column_l = tableop.get_columns([tnames[0]], full=True)[0]
+                column_r = tableop.get_columns([tnames[1]], full=True)[0]
+                table_l, table_r = tnames[0], tnames[1]
             else:
-                columnL = columns
-                columnR = tableop.get_columns([tnames[i + 1]], full=True)[0]
-                tableL, tableR = tnames[1 + i], subquery
-            columns = columnL + [c for c in columnR if c not in columnL]
+                column_l = columns
+                column_r = tableop.get_columns([tnames[i + 1]], full=True)[0]
+                table_l, table_r = tnames[1 + i], subquery
+            columns = column_l + [c for c in column_r if c not in column_l]
             columns_str = ', '.join(columns)
             subquery = f'''
-(SELECT {columns_str} FROM {tableL} NATURAL LEFT JOIN {tableR}
+(SELECT {columns_str} FROM {table_l} NATURAL LEFT JOIN {table_r}
 UNION
-SELECT {columns_str} FROM {tableL} NATURAL RIGHT JOIN {tableR})_
+SELECT {columns_str} FROM {table_l} NATURAL RIGHT JOIN {table_r})_
 '''.strip()
-        subquery = subquery.replace('\n', ' ')
-        sql_from = f'FROM {subquery}'
+        sql_from = 'FROM ' + subquery.replace('\n', ' ')
 
-    sql = f'{sql_select} {sql_from} {sql_where}'.strip() + ';'
-    from easydbo.main.select.sql import execute_query
-    return execute_query(dbop, sql)
-
-def _create_window(winmgr, cmd, headings, data):
-    from ..show import ShowWindow
-    win = ShowWindow(cmd=cmd, headings=headings, data=data)
-    winmgr.add_window(win)
+    return sql_from

@@ -8,7 +8,7 @@ class TableButtonLayout(BaseLayout):
         self.prefkey = prefkey
         self.util = util
 
-        self.key_tnames = [f'{prefkey}.{tn}' for tn in util.tnames]
+        self.key_tnames = [f'{prefkey}{tn}' for tn in util.tnames]
         self.layout = [
             [sg.Button(f' {tn} ', key=self.key_tnames[i], font=('', 13), button_color='#b8b846')
              for i, tn in enumerate(util.tnames)],
@@ -19,7 +19,7 @@ class TableButtonLayout(BaseLayout):
     def handle(self, event, values):
         if event not in self.key_tnames:
             return
-        tname = event.replace(f'{self.prefkey}.', '')
+        tname = event.replace(f'{self.prefkey}', '')
         if tname in self.tnames_twins:
             twindow = self.tnames_twins[tname]
         else:

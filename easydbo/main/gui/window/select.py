@@ -6,7 +6,7 @@ from .layout.fulljoin import FullJoinTab
 
 class SelectWindow(BaseWindow):
     def __init__(self, winmgr, util):
-        BaseWindow.__init__(self)
+        super().__init__()
 
         # Layout
         self.prefkey_instbl = '_instbl__.'

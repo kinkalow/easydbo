@@ -1,9 +1,12 @@
 import sys
 import PySimpleGUI as sg
 from .select import SelectWindow
+from datetime import datetime
+
 
 class Util:
-    def __init__(self, configs, aliases, tableop, dbop):
+    def __init__(self, winmgr, configs, aliases, tableop, dbop):
+        self.winmgr = winmgr
         self.configs = configs
         self.aliases = aliases
         self.tableop = tableop
@@ -21,10 +24,13 @@ class Util:
             func, args = func_args[0], func_args[1:]
             func(*args)
 
+    def make_timestamp_prefix(self, prefix):
+        return f'_{prefix}{int(datetime.now().timestamp())}__.'
+
 class WindowManger():
 
     def __init__(self, configs, aliases, tableop, dbop):
-        util = Util(configs, aliases, tableop, dbop)
+        util = Util(self, configs, aliases, tableop, dbop)
         select = SelectWindow(self, util)
         self.windows = {select.get_window(): select}
         self.main_window = select
@@ -42,7 +48,7 @@ class WindowManger():
         while True:
             sys.stdout.flush()
             window, event, values = sg.read_all_windows()
-            #print(window, event, values); exit()
+            #print(window, event, values, window in self.windows)
             if event == sg.WIN_CLOSED:
                 if window == self.main_window:
                     for w in self.windows.values():
