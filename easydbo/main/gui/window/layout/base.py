@@ -1,12 +1,19 @@
+import sys
+
 class BaseLayout:
-    def bind(self, window):
-        pass
+    def filter_values_by_prefix_key(self, prefkey, values):
+        return {k: v for k, v in values.items()
+                if isinstance(k, str) and k.startswith(prefkey)}
 
     def handle(self, event, values):
         pass
 
     def get_layout(self):
         return self.layout
+
+    def print(self, msg):
+        print(msg)
+        sys.stdout.flush()
 
     def remove_prefix_key(self, prefkey, event='', values={}):
         len_ = len(prefkey)
@@ -22,6 +29,5 @@ class BaseLayout:
         else:
             return
 
-    def filter_values_by_prefix_key(self, prefkey, values):
-        return {k: v for k, v in values.items()
-                if isinstance(k, str) and k.startswith(prefkey)}
+    def set_window(self, window):
+        self.window = window

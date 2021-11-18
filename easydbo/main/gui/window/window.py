@@ -24,6 +24,12 @@ class Util:
             func, args = func_args[0], func_args[1:]
             func(*args)
 
+    def to_csv(self, header, data2d, delimiter=','):
+        header_csv = delimiter.join(header)
+        data_csv = '\n'.join([delimiter.join(d1) for d1 in data2d])
+        data_csv = f'{data_csv}\n' if data_csv else data_csv
+        return f'{header_csv}\n{data_csv}' if header else data_csv
+
     def make_timestamp_prefix(self, prefix):
         return f'_{prefix}{int(datetime.now().timestamp())}__.'
 

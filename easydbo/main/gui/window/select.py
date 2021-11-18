@@ -21,7 +21,7 @@ class SelectWindow(BaseWindow):
         layout = [
             instbl.get_layout(),
             [sg.TabGroup([[
-               sg.Tab('Join', fulljoin.get_layout()),
+               sg.Tab('FullJoin', fulljoin.get_layout()),
                sg.Tab('Alias', alias.get_layout()),
             ]], expand_x=True)]
         ]
@@ -34,9 +34,10 @@ class SelectWindow(BaseWindow):
             resizable=True,
             finalize=True,
         )
-        for c in self.prefkey_clsobj.values():
-            c.bind(self.window)
-        #self.window['-key_join_frame-'].Widget.configure(highlightcolor='yellow', highlightthickness=2)
+        for clsobj in self.prefkey_clsobj.values():
+            clsobj.set_window(self.window)
+
+            #self.window['-key_join_frame-'].Widget.configure(highlightcolor='yellow', highlightthickness=2)
 
     def handle(self, event, values):
         for p, c in self.prefkey_clsobj.items():

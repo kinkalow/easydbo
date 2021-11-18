@@ -14,5 +14,9 @@ class BaseWindow:
     def get_window(self):
         return self.window
 
+    def print(self, msg):
+        print(msg)
+        sys.stdout.flush()
+
     def flush(self):
         sys.stdout.flush()
