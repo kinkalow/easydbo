@@ -4,7 +4,7 @@ from .base import BaseWindow
 from .layout.common import Attribution as attr
 
 class SelectResultWindow(BaseWindow):
-    def __init__(self, winmgr, util, query, header, data):
+    def __init__(self, winmgr, util, query, header, data, use_query_btn=True):
         super().__init__()
         self.winmgr = winmgr
         self.util = util
@@ -20,11 +20,15 @@ class SelectResultWindow(BaseWindow):
         self.key_csvbtn = f'{prefkey}csvbutton'
         self.key_datatable = f'{prefkey}datatable'
 
-        self.layout = [
-            [
+        if use_query_btn:
+            query_btn = [
                 sg.Button('Query', key=self.key_querybtn, **attr.base_button),
                 sg.Text(query, key=self.key_querytxt, **attr.base_text),
-            ],
+            ]
+        else:
+            query_btn = []
+        self.layout = [query_btn] + \
+        [
             [
                 sg.Button('Grep', key=self.key_grepbtn, **attr.base_button),
                 sg.InputText('', key=self.key_grepinputtxt, **attr.base_text),
@@ -53,7 +57,7 @@ class SelectResultWindow(BaseWindow):
         ]
 
         self.window = sg.Window(
-            'EasyDBO SelectResult',
+            'EasyDBO result',
             self.layout,
             location=(4500, 200),
             size=(1000, 300),
@@ -103,7 +107,7 @@ class SelectResultWindow(BaseWindow):
                 self.print(f'All data matched for patten: {grep_pat}')
                 return
             # Show grep result on new window
-            win = SelectResultWindow(self.winmgr, self.util, grep_cmd, header, new_data)
+            win = SelectResultWindow(self.winmgr, self.util, grep_cmd, header, new_data, use_query_btn=False)
             self.winmgr.add_window(win)
 
         elif event == self.key_csvbtn:

@@ -39,7 +39,7 @@ class WindowManger():
         util = Util(self, configs, aliases, tableop, dbop)
         select = SelectWindow(self, util)
         self.windows = {select.get_window(): select}
-        self.main_window = select
+        self.main_window = select.get_window()
 
     def add_window(self, winobj):
         self.windows.update({winobj.get_window(): winobj})

@@ -40,8 +40,11 @@ class TableOperator():
                     Log.error(f'"{tgt}" is not table name')
             return cols
 
-    def get_tables(self):
-        return [t for t in self.tables]
+    def get_tables(self, targets=[]):
+        if targets:
+            return [t for t in self.tables if t.name in targets]
+        else:
+            return [t for t in self.tables]
 
     def get_tnames(self):
         return [t.name for t in self.tables]

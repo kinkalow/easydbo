@@ -91,8 +91,8 @@ class DatabaseOperation:
         '''
         table    : str : table name
         cols_vals: dict: pair of columns and values
-        pn       : str : primary names
-        pv       : str : primary values
+        pn       : str : primary name
+        pv       : str : primary value
         '''
         set_ = ', '.join([f'{c}="{v}"' for c, v in cols_vals.items()])
         where = f'{pn}={pv}'

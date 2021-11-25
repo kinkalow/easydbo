@@ -23,8 +23,10 @@ class TableButtonLayout(BaseLayout):
         if tname in self.tnames_twins:
             twindow = self.tnames_twins[tname]
         else:
-            twindow = TableWindow(tname, self.util,
-                                  on_close=[self.on_table_window_close, tname])
+            location = self.window.CurrentLocation()
+            twindow = TableWindow(self.util, tname,
+                                  on_close=[self.on_table_window_close, tname],
+                                  parent_loc=location)
             self.tnames_twins.update({tname: twindow})
             self.winmgr.add_window(twindow)
 

@@ -29,7 +29,7 @@ class SelectWindow(BaseWindow):
         self.window = sg.Window(
             'EasyDBO select',
             layout,
-            location=(4000, 200),
+            location=(5000, 200),
             size=(1300, 800),
             resizable=True,
             finalize=True,
@@ -37,7 +37,7 @@ class SelectWindow(BaseWindow):
         for clsobj in self.prefkey_clsobj.values():
             clsobj.set_window(self.window)
 
-            #self.window['-key_join_frame-'].Widget.configure(highlightcolor='yellow', highlightthickness=2)
+        #self.window['-key_join_frame-'].Widget.configure(highlightcolor='yellow', highlightthickness=2)
 
     def handle(self, event, values):
         for p, c in self.prefkey_clsobj.items():
