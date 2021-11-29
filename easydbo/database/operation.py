@@ -35,7 +35,7 @@ class DatabaseOperation:
     def get_current_columns(self):
         return list(self.cursor.column_names)
 
-    def get_current_statement(self):
+    def get_current_query(self):
         return self.cursor.statement
 
     # <---

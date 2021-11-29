@@ -1,6 +1,6 @@
 import sys
 import PySimpleGUI as sg
-from .select import SelectWindow
+from .selection import SelectionWindow
 from datetime import datetime
 
 
@@ -37,7 +37,7 @@ class WindowManger():
 
     def __init__(self, configs, aliases, tableop, dbop):
         util = Util(self, configs, aliases, tableop, dbop)
-        select = SelectWindow(self, util)
+        select = SelectionWindow(self, util)
         self.windows = {select.get_window(): select}
         self.main_window = select.get_window()
 

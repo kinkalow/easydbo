@@ -16,6 +16,6 @@ def main(arguments, configs, tableop, dbop):
     tgt_cmd = tgt_alias.sql
     rows = dbop.select_by_cmd(tgt_cmd)  # Perform this method first
     columns = dbop.get_current_columns()
-    title = dbop.get_current_statement()
+    title = dbop.get_current_query()
 
     return title, columns, rows

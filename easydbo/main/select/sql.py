@@ -5,9 +5,9 @@ def execute_query(dbop, sql):
     dbop.authenticate()
     rows = dbop.select_by_cmd(sql)  # Perform this method first
     columns = dbop.get_current_columns()
-    title = dbop.get_current_statement()
+    title = dbop.get_current_query()
     if not rows:
-        Log.info(title)
+        Log.info('No matching data')
     return title, columns, rows
 
 def main(arguments, configs, tableop, dbop):

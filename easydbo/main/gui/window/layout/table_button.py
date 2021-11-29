@@ -1,6 +1,7 @@
 import PySimpleGUI as sg
 from .base import BaseLayout
 from ..table import TableWindow
+from .common import Attribution as attr
 
 class TableButtonLayout(BaseLayout):
     def __init__(self, winmgr, prefkey, util):
@@ -10,7 +11,7 @@ class TableButtonLayout(BaseLayout):
 
         self.key_tnames = [f'{prefkey}{tn}' for tn in util.tnames]
         self.layout = [
-            [sg.Button(f' {tn} ', key=self.key_tnames[i], font=('', 13), button_color='#b8b846')
+            [sg.Button(f' {tn} ', **attr.base_button_with_color_safety, key=self.key_tnames[i])
              for i, tn in enumerate(util.tnames)],
             [sg.Text('')],
         ]

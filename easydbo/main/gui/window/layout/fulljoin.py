@@ -1,7 +1,7 @@
 import PySimpleGUI as sg
 from .base import BaseLayout
 from .common import Attribution as attr
-from ..select_result import SelectResultWindow
+from ..query import QueryResultWindow
 
 class FullJoinTab(BaseLayout):
     def __init__(self, winmgr, prefkey, util):
@@ -25,11 +25,6 @@ class FullJoinTab(BaseLayout):
         self.key_where = f'{prefkey}where'
         self.key_query = f'{prefkey}query'
 
-        attr_button = attr.base_button
-        attr_checkbox = attr.base_checkbox
-        attr_inputtext = attr.base_inputtext
-        attr_text = attr.base_text
-
         # Full Outer Join
         tnames_columns = []
         for i, tn in enumerate(util.tnames):
@@ -37,11 +32,11 @@ class FullJoinTab(BaseLayout):
                 sg.Text(f' {tn} ', **attr.text_table, size=(len(tn) + 2, 1)),
             ])
             tnames_columns.append([
-                sg.Checkbox(c, key=self.key_cols_cbs[i][j], **attr_checkbox, size=(20 - 3, 1))
+                sg.Checkbox(c, key=self.key_cols_cbs[i][j], **attr.base_checkbox, size=(20 - 3, 1))
                 for j, c in enumerate(util.fullcolumns[i])
             ])
             tnames_columns.append([
-                sg.InputText('', key=self.key_cols_conds[i][j], **attr_inputtext, size=(20, 1))
+                sg.InputText('', key=self.key_cols_conds[i][j], **attr.base_inputtext, size=(20, 1))
                 for j, c in enumerate(util.fullcolumns[i])
             ])
         #
@@ -66,35 +61,35 @@ class FullJoinTab(BaseLayout):
         layout = [[join_frame]]
         layout += [
             [
-                sg.Button('Show', **attr_button, key=self.key_show),
+                sg.Button('Show', **attr.base_button_with_color_safety, key=self.key_show),
                 sg.Frame(
                     'Check',
                     [[
-                        sg.Button('All', **attr_button, key=self.key_checkall),
-                        sg.Button('Clear', **attr_button, key=self.key_checkclear),
+                        sg.Button('All', **attr.base_button_with_color_safety, key=self.key_checkall),
+                        sg.Button('Clear', **attr.base_button_with_color_safety, key=self.key_checkclear),
                     ]],
                     title_location=sg.TITLE_LOCATION_LEFT,
                 ),
                 sg.Frame(
                     'Text',
                     [[
-                        sg.Button('Clear', **attr_button, key=self.key_inputtextclear),
+                        sg.Button('Clear', **attr.base_button_with_color_safety, key=self.key_inputtextclear),
                     ]],
                     title_location=sg.TITLE_LOCATION_LEFT,
                 )
             ],
             [sg.Text('')],
             [
-                sg.Text('SELECT', **attr_text, size=(7, 1)),
-                sg.InputText('', key=self.key_select, **attr_inputtext, expand_x=True),
+                sg.Text('SELECT', **attr.base_text, size=(7, 1)),
+                sg.InputText('', **attr.base_inputtext, key=self.key_select, expand_x=True),
             ],
             [
-                sg.Text('WHERE', **attr_text, size=(7, 1)),
-                sg.InputText('', key=self.key_where, **attr_inputtext, expand_x=True),
+                sg.Text('WHERE', **attr.base_text, size=(7, 1)),
+                sg.InputText('', key=self.key_where, **attr.base_inputtext, expand_x=True),
             ],
             [
-                sg.Button('Create', **attr_button, key=self.key_create),
-                sg.Button('Query', **attr_button, key=self.key_query),
+                sg.Button('Create', **attr.base_button_with_color_safety, key=self.key_create),
+                sg.Button('Query', **attr.base_button_with_color_safety, key=self.key_query),
             ],
         ]
 
@@ -140,8 +135,7 @@ class FullJoinTab(BaseLayout):
         #values['_fulljoin__.cancer.cancer_receive_date.inputtext'] = '>2021-01-01'
 
         # Create SELECT clause from checkboxes
-        cbs = [k for k, v in values.items()
-               if k.endswith('.checkbox') and v]  # k='prefkey.table.column.suffix'
+        cbs = [k for k, v in values.items() if k.endswith('.checkbox') and v]  # k='prefkey.table.column.suffix'
         cb_tbls = [c.split('.')[1] for c in cbs]
         cb_cols = [c.split('.')[2] for c in cbs]
         if not sql_select:
@@ -172,7 +166,7 @@ class FullJoinTab(BaseLayout):
         query, header, data = execute_query(self.dbop, sql)
 
         # Print data on new window
-        win = SelectResultWindow(self.winmgr, self.util, query, header, data)
+        win = QueryResultWindow(self.winmgr, self.util, query, header, data)
         self.winmgr.add_window(win)
 
     def create_clause(self, values):

@@ -33,19 +33,22 @@ class TableWindow(BaseWindow):
             [sg.Text(c, **attr.base_text, key=self.key_columns[i], size=(20, 1)) for i, c in enumerate(self.columns)],
             [sg.InputText('', **attr.base_inputtext, key=self.key_inputs[i], size=(20, 1)) for i, c in enumerate(self.columns)],
             [
-                sg.Button('Insert', **attr.base_button, button_color=attr.color_warning, key=self.key_insert),
-                sg.Button('Clear', **attr.base_button, button_color=attr.color_safe, key=self.key_clear),
+                sg.Button('Insert', **attr.base_button_with_color_warning, key=self.key_insert),
+                sg.Button('Clear', **attr.base_button_with_color_safety, key=self.key_clear),
             ],
             [sg.Text()],
             [
-                sg.Button('CopyPaste', **attr.base_button, key=self.key_copypaste, button_color=attr.color_safe),
-                sg.Button('Print', **attr.base_button, key=self.key_print, button_color=attr.color_safe),
-                sg.Button('Save', **attr.base_button, key=self.key_save, button_color=attr.color_safe),
-                sg.Button('Update', **attr.base_button, key=self.key_update, button_color=attr.color_warning),
-                sg.Button('Delete', **attr.base_button, key=self.key_delete, button_color=attr.color_danger),
+                sg.Button('CopyPaste', **attr.base_button_with_color_safety, key=self.key_copypaste),
+                sg.Button('Print', **attr.base_button_with_color_safety, key=self.key_print),
+                #sg.Button('Save', **attr.base_button_with_color_safety, key=self.key_save),
+                sg.InputText(**attr.base_inputtext, key=self.key_save, visible=False, enable_events=True),
+                sg.FileSaveAs('Save', **attr.base_button_with_color_safety, file_types=(('CSV', '.csv'), )),
+                sg.Button('Update', **attr.base_button_with_color_warning, key=self.key_update),
+                sg.Button('Delete', **attr.base_button_with_color_danger, key=self.key_delete),
             ],
             [sg.Table(
                 [['' for _ in range(len(self.columns))]],
+                **attr.base_table,
                 key=self.key_table,
                 headings=self.columns,
                 auto_size_columns=False,
@@ -92,6 +95,11 @@ class TableWindow(BaseWindow):
             self.update(values)
         elif event == self.key_delete:
             self.delete(values)
+        elif event == self.key_print:
+            self.print_table_data()
+        elif event == self.key_save:
+            path = values[self.key_save]
+            self.save_as_csv(path)
         elif event == self.key_table_doubleclick:
             pass
             #self.doubleclick(values)
@@ -149,6 +157,15 @@ class TableWindow(BaseWindow):
         self.window[self.key_table].update(self.table_data)
         #
         [print(f'Delete: {list(d)}') for d in data]
+
+    def print_table_data(self):
+        from .command.common import print_table_data
+        data = self.table.get()
+        print_table_data(data)
+
+    def save_as_csv(self, path):
+        from .command.common import save_table_data_as_csv
+        save_table_data_as_csv(self.window[self.key_table], path)
 
 
 class TableChangeWindow(BaseWindow):

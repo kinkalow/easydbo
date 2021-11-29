@@ -1,6 +1,6 @@
 import PySimpleGUI as sg
 from .base import BaseWindow
-#from .layout import BaseLayout
+from .layout.common import Attribution as attr
 
 #class SaveAsAliasLayout(BaseLayout):
 #    def __init__(self):
@@ -22,8 +22,8 @@ class SaveAsAliasWindow(BaseWindow):
         self.key_query = f'{prefkey}query'
         self.layout = [
             [
-                sg.Button('Save'),
-                sg.Button('Close'),
+                sg.Button('Save', **attr.base_button_with_color_safety),
+                sg.Button('Close', **attr.base_button_with_color_safety),
             ],
             [
                 sg.Text('Alias', size=(5, 1)),

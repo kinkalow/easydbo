@@ -4,7 +4,7 @@ from .layout.table_button import TableButtonLayout
 from .layout.alias import AliasTab
 from .layout.fulljoin import FullJoinTab
 
-class SelectWindow(BaseWindow):
+class SelectionWindow(BaseWindow):
     def __init__(self, winmgr, util):
         super().__init__()
 
@@ -23,14 +23,14 @@ class SelectWindow(BaseWindow):
             [sg.TabGroup([[
                sg.Tab('FullJoin', fulljoin.get_layout()),
                sg.Tab('Alias', alias.get_layout()),
-            ]], expand_x=True)]
+            ]], expand_x=True, expand_y=True)]
         ]
 
         self.window = sg.Window(
-            'EasyDBO select',
+            'EasyDBO selection',
             layout,
             location=(5000, 200),
-            size=(1300, 800),
+            size=(1200, 800),
             resizable=True,
             finalize=True,
         )
