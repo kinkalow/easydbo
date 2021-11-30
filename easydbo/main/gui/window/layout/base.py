@@ -8,6 +8,9 @@ class BaseLayout:
     def handle(self, event, values):
         pass
 
+    def get_privatekey(self):
+        return self.prefkey
+
     def get_layout(self):
         return self.layout
 

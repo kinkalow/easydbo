@@ -4,14 +4,13 @@ from .common import Attribution as attr
 from ..query import QueryResultWindow
 
 class FullJoinTab(BaseLayout):
-    def __init__(self, winmgr, prefkey, util):
-        self.winmgr = winmgr
+    def __init__(self, util):
         self.util = util
 
         self.tableop = util.tableop
         self.dbop = util.dbop
-        self.prefkey = prefkey
 
+        self.prefkey = prefkey = '_fulljoin__.'
         self.key_cols_cbs = [[f'{prefkey}{t}.{c}.checkbox' for c in util.fullcolumns[i]]
                              for i, t in enumerate(util.tnames)]
         self.key_cols_conds = [[f'{prefkey}{t}.{c}.inputtext' for c in util.fullcolumns[i]]
@@ -166,8 +165,8 @@ class FullJoinTab(BaseLayout):
         query, header, data = execute_query(self.dbop, sql)
 
         # Print data on new window
-        win = QueryResultWindow(self.winmgr, self.util, query, header, data)
-        self.winmgr.add_window(win)
+        win = QueryResultWindow(self.util.winmgr, self.util, query, header, data)
+        self.util.winmgr.add_window(win)
 
     def create_clause(self, values):
         sql_select, sql_where = self.show(values, only_return_query=True)

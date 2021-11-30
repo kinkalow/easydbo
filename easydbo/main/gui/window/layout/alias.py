@@ -4,11 +4,11 @@ from .common import Attribution as attr
 from ..query import QueryResultWindow
 
 class AliasTab(BaseLayout):
-    def __init__(self, winmgr, prefkey, util):
+    def __init__(self, util):
         self.util = util
-        self.aliases = aliases = util.aliases
-        self.prefkey = prefkey
 
+        self.prefkey = prefkey = '_alias__.'
+        aliases = util.aliases
         placeholder_mark = '?'
         self.key_btns = [f'{prefkey}{a.name}.button' for a in aliases]
         self.key_inputs = [f'{prefkey}{a.name}.inputtext' for a in aliases]

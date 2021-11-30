@@ -1,6 +1,6 @@
 import PySimpleGUI as sg
 from .base import BaseWindow
-from .layout.table_button import TableButtonLayout
+from .layout.table_change import TableChangeLayout
 from .layout.alias import AliasTab
 from .layout.fulljoin import FullJoinTab
 
@@ -9,17 +9,14 @@ class SelectionWindow(BaseWindow):
         super().__init__()
 
         # Layout
-        self.prefkey_instbl = '_instbl__.'
-        self.prefkey_fulljoin = '_fulljoin__.'
-        self.prefkey_alias = '_alias__.'
-        instbl = TableButtonLayout(winmgr, self.prefkey_instbl, util)
-        fulljoin = FullJoinTab(winmgr, self.prefkey_fulljoin, util)
-        alias = AliasTab(winmgr, self.prefkey_alias, util)
-        self.prefkey_clsobj = {self.prefkey_instbl: instbl,
-                               self.prefkey_fulljoin: fulljoin,
-                               self.prefkey_alias: alias}
+        tblchg = TableChangeLayout(util)
+        fulljoin = FullJoinTab(util)
+        alias = AliasTab(util)
+        self.prefkey_clsobj = {tblchg.prefkey: tblchg,
+                               fulljoin.prefkey: fulljoin,
+                               alias.prefkey: alias}
         layout = [
-            instbl.get_layout(),
+            tblchg.get_layout(),
             [sg.TabGroup([[
                sg.Tab('FullJoin', fulljoin.get_layout()),
                sg.Tab('Alias', alias.get_layout()),
@@ -27,7 +24,7 @@ class SelectionWindow(BaseWindow):
         ]
 
         self.window = sg.Window(
-            'EasyDBO selection',
+            'EasyDBO Selection',
             layout,
             location=(5000, 200),
             size=(1200, 800),
