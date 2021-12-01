@@ -5,6 +5,8 @@ def print_table_data(data2d):
     sys.stdout.flush()
 
 def save_table_data_as_csv(table, path, delimiter=','):
+    if not path:
+        return
     header = table.ColumnHeadings
     data2d = table.get()  # data2d=[(...), ...]
     with open(path, 'w') as f:

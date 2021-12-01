@@ -74,10 +74,14 @@ class TableWindow(BaseWindow):
         self.table_data = self._show_table_data()
 
     def _show_table_data(self):
-        cmd = f'SELECT * FROM {self.tname};'
-        data = self.dbop.execute(cmd, ret=True)
-        self.table.update(data)
-        return data
+        query = f'SELECT * FROM {self.tname};'
+        ret = self.dbop.execute(query, do_fetchall=True, ignore_error=True)
+        if ret.is_error:
+            print(f'Something is wrong\n{ret}')
+            return self.close()
+        rows = ret.rows
+        self.table.update(rows)
+        return rows
 
     def close(self):
         self.window.close()
@@ -107,12 +111,12 @@ class TableWindow(BaseWindow):
 
     def insert(self, values):
         data = [self.window[k].get() for k in self.key_inputs]
-        # Update
-        self.dbop.insert(self.tname, self.columns, [data])
+        ret = self.dbop.insert(self.tname, self.columns, [data], ignore_error=True)
+        if ret.is_error:
+            return
         self.dbop.commit()
         self.table_data.insert(0, data)
         self.table.update(self.table_data)
-        #
         print(f'Insert: {data}')
 
     def clear(self):
@@ -142,7 +146,7 @@ class TableWindow(BaseWindow):
             return
         data = self.get_table_data(rows)
         location = self.window.CurrentLocation()
-        winobj = TableChangeWindow(self, self.util, rows, self.tname, self.columns, data, self.table_data, parent_loc=location)
+        winobj = TableUpdateWindow(self, self.util, rows, self.tname, self.columns, data, self.table_data, location)
         self.util.winmgr.add_window(winobj)
 
     def notify_update(self, rows, updates):
@@ -157,12 +161,12 @@ class TableWindow(BaseWindow):
         rows = sorted(values[self.key_table])
         data = self.get_table_data(rows)
         pkvals = [d[pkidx] for d in data]
-        # Update
-        self.dbop.delete_by_pk(self.tname, pk, pkvals)
+        ret = self.dbop.delete_by_pk(self.tname, pk, pkvals, ignore_error=True)
+        if ret.is_error:
+            return
         self.dbop.commit()
         [self.table_data.pop(r - i) for i, r in enumerate(rows)]
         self.table.update(self.table_data)
-        #
         [print(f'Delete: {list(d)}') for d in data]
 
     def print_table_data(self):
@@ -175,8 +179,8 @@ class TableWindow(BaseWindow):
         save_table_data_as_csv(self.table, path)
 
 
-class TableChangeWindow(BaseWindow):
-    def __init__(self, parent, util, rows, tname, columns, selected_data, table_data, parent_loc=()):
+class TableUpdateWindow(BaseWindow):
+    def __init__(self, parent, util, rows, tname, columns, selected_data, table_data, parent_loc):
         self.parent = parent
         self.util = util
         self.rows = rows
@@ -184,6 +188,8 @@ class TableChangeWindow(BaseWindow):
         self.columns = columns
         self.selected_data = selected_data
         self.table_data = table_data
+        #
+        self.dbop = self.util.dbop
 
         self.prefkey = prefkey = f'_table{tname}change__.'
         self.key_update = f'{prefkey}update'
@@ -203,32 +209,35 @@ class TableChangeWindow(BaseWindow):
             resizable=True,
             finalize=True,
         )
+        self.window.move(parent_loc[0], parent_loc[1] + 30)
 
-        if parent_loc:
-            self.window.move(parent_loc[0], parent_loc[1] + 30)
-
-    def handle(self, event, handle):
+    def handle(self, event, values):
         if event == self.key_update:
-            # Check
-            if not all([self.selected_data[i] == self.table_data[r] for i, r in enumerate(self.rows)]):
-                print('Error: Could not update due to data changes in table')
-                self.close()
-                return
+            self.update()
 
-            table = self.util.tableop.get_tables(targets=[self.tname])[0]
-            pk, pkidx = table.pk, table.pkidx
-
-            updates = []
-            for i, keys in enumerate(self.key_inputs):
-                origin = self.selected_data[i]
-                update = [self.window[k].get() for k in keys]
-                diff = {c: u for i, (c, o, u) in enumerate(zip(self.columns, origin, update)) if o != u}
-                if not diff:
-                    continue
-                pkval = origin[pkidx]
-                self.util.dbop.update(self.tname, diff, pk, pkval)
-                updates.append(update)
-
-            self.util.dbop.commit()
-            self.parent.notify_update(self.rows, updates)
+    def update(self):
+        # Check
+        if not all([self.selected_data[i] == self.table_data[r] for i, r in enumerate(self.rows)]):
+            print('Error: Could not update due to data changes in table')
             self.close()
+            return
+
+        table = self.util.tableop.get_tables(targets=[self.tname])[0]
+        pk, pkidx = table.pk, table.pkidx
+
+        updates = []
+        for i, keys in enumerate(self.key_inputs):
+            origin = self.selected_data[i]
+            update = [self.window[k].get() for k in keys]
+            diff = {c: u for i, (c, o, u) in enumerate(zip(self.columns, origin, update)) if o != u}
+            if not diff:
+                continue
+            pkval = origin[pkidx]
+            ret = self.dbop.update(self.tname, diff, pk, pkval, ignore_error=True)
+            if ret.is_error:
+                return self.dbop.rollback()
+            updates.append(update)
+
+        self.dbop.commit()
+        self.parent.notify_update(self.rows, updates)
+        self.close()

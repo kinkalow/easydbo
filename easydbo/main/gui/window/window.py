@@ -45,10 +45,7 @@ class WindowManger():
         self.windows.update({winobj.get_window(): winobj})
 
     def close(self):
-        for i, sub in enumerate(self.windows):
-            if sub.window:
-                sub.close()
-        super().close()
+        [w.close() for w in self.windows.values() if w.window]
 
     def run(self):
         while True:
@@ -57,8 +54,7 @@ class WindowManger():
             #print(window, event, values, window in self.windows)
             if event == sg.WIN_CLOSED:
                 if window == self.main_window:
-                    for w in self.windows.values():
-                        w.close()
+                    self.close()
                     break
                 else:
                     self.windows[window].close()

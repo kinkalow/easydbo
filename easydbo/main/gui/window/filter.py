@@ -66,6 +66,8 @@ class FilterWindow(BaseWindow):
 
     def filter(self, values):
         inputs = {k.split('.')[1]: v for k, v in values.items() if v and k in self.key_inputs}
+        if not inputs:
+            return
         keys, values = map(list, zip(*inputs.items()))
         idxes = [self.columns.index(k) for k in keys]
         tdata = []
