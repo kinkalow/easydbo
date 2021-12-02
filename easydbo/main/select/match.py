@@ -95,7 +95,8 @@ def _create_select_sql(sql_select, sql_from, sql_where):
 
 def _execute_view_and_select_sqls(dbop, sql, sql_pre, sql_post):
     def del_prev_temp_view():
-        tables = dbop.execute('SHOW TABLES', do_fetchall=True).rows
+        dbop.execute('SHOW TABLES')
+        tables = dbop.fetchall()
         for t, in tables:
             if re.match(_VIEW_PREFIX, t):
                 dbop.execute(f'DROP VIEW IF EXISTS {t}')

@@ -10,7 +10,7 @@ class TableChangeLayout(BaseLayout):
         self.prefkey = prefkey = '_tablechange__.'
         self.key_tnames = [f'{prefkey}{tn}' for tn in util.tnames]
         self.layout = [
-            [sg.Button(f' {tn} ', **attr.base_button_with_color_safety, key=self.key_tnames[i])
+            [sg.Button(f' {tn} ', **attr.base_button_with_color_warning, key=self.key_tnames[i])
              for i, tn in enumerate(util.tnames)],
             [sg.Text('')],
         ]

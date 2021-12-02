@@ -6,10 +6,12 @@ class TableWindow(BaseWindow):
     def __init__(self, tname, util, parent_loc, on_close=None):
         self.tname = tname
         self.util = util
-        self.columns = util.get_column(tname)
+        #
         self.dbop = util.dbop
-
+        self.columns = util.get_column(tname)
         self.on_close = on_close
+        self.sort_reverse = True
+        self.rightclick_location = (-1, -1)
 
         self.prefkey = prefkey = f'_table{tname}__.'
         self.key_tname = f'{prefkey}{tname}'
@@ -24,11 +26,12 @@ class TableWindow(BaseWindow):
         self.key_update = f'{prefkey}update'
         self.key_delete = f'{prefkey}delete'
         self.key_table = f'{prefkey}table'
-        self.key_table_click = f'{prefkey}table.click'
-        self.key_table_doubleclick = f'{prefkey}table.doubleclick'
+        self.key_table_rightclick = f'{prefkey}table.rightclick'  # bind
+        #
+        self.key_rightclick_copypastecell = 'CopyPasteCell'
+        self.key_rightclick_sort = 'Sort'
 
-        commands = ['Copy', 'Delete', 'Update']
-
+        self.rightclick_commands = [self.key_rightclick_copypastecell, self.key_rightclick_sort]
         layout = [
             [sg.Text(f' {tname} ', **attr.text_table, key=self.key_tname)],
             [sg.Text(c, **attr.base_text, key=self.key_columns[i], size=(20, 1)) for i, c in enumerate(self.columns)],
@@ -53,33 +56,34 @@ class TableWindow(BaseWindow):
                 key=self.key_table,
                 headings=self.columns,
                 col_widths=[20 for _ in range(len(self.columns))],
-                enable_events=True,
-                right_click_menu=['&Right', commands],
+                enable_click_events=True,
+                right_click_menu=['&Right', self.rightclick_commands],
+                expand_y=True,
             )],
         ]
 
         self.window = sg.Window(
             f'EasyDBO {tname}',
             layout,
-            size=(1200, 500),
+            size=(1200, 800),
             resizable=True,
             finalize=True,
             location=(30, 30),
         )
         self.window.move(parent_loc[0], parent_loc[1] + 30)
-        self.table = self.window[self.key_table]
-        #self.table.bind('<Click-Button-1>', f'.{self.key_table_doubleclick.split(".")[-1]}')
-        #self.table.bind('<Double-Button-1>', f'.{self.key_table_doubleclick.split(".")[-1]}')
 
+        # Table
+        self.table = self.window[self.key_table]
         self.table_data = self._show_table_data()
+        self.table.bind('<Button-3>', f'.{self.key_table_rightclick.split(".")[-1]}')
 
     def _show_table_data(self):
         query = f'SELECT * FROM {self.tname};'
-        ret = self.dbop.execute(query, do_fetchall=True, ignore_error=True)
+        ret = self.dbop.execute(query, ignore_error=True)
         if ret.is_error:
             print(f'Something is wrong\n{ret}')
             return self.close()
-        rows = ret.rows
+        rows = self.dbop.fetchall()
         self.table.update(rows)
         return rows
 
@@ -87,6 +91,8 @@ class TableWindow(BaseWindow):
         self.window.close()
         self.window = None
         self.util.call(self.on_close)
+
+    # handle --->
 
     def handle(self, event, values):
         if event == self.key_insert:
@@ -106,8 +112,34 @@ class TableWindow(BaseWindow):
         elif event == self.key_save:
             path = values[self.key_save]
             self.save_as_csv(path)
-        #elif event == self.key_table_doubleclick:
-        #    self.doubleclick(values)
+        elif (isinstance(event, tuple) and event[0:2] == (self.key_table, '+CICKED+')):  # On table
+            row, col = event[2]
+            if row == -1:  # True when header line clicked
+                self.sort(col)
+        elif event == self.key_table_rightclick:
+            e = self.table.user_bind_event
+            region = self.table.Widget.identify_region(e.x, e.y)
+            if region == 'heading' or region == 'cell':
+                # row and col starts from 1
+                # row = 0 means header line
+                row = self.table.Widget.identify_row(e.y)
+                row = int(row) if row else 0
+                col = int(self.table.Widget.identify_column(e.x).replace('#', ''))
+                print(row, col)
+                self.rightclick_location = (row, col)
+            else:
+                self.rightclick_location = (-1, -1)
+        elif event in self.rightclick_commands:
+            if self.rightclick_location == (-1, -1):
+                return
+            row, col = self.rightclick_location[0] - 1, self.rightclick_location[1] - 1
+            if event == self.key_rightclick_sort:
+                self.sort(col)
+            elif event == self.key_rightclick_copypastecell:
+                if row == -1:
+                    return
+                else:
+                    self.copypaste_cell(row, col)
 
     def insert(self, values):
         data = [self.window[k].get() for k in self.key_inputs]
@@ -124,12 +156,16 @@ class TableWindow(BaseWindow):
             self.window[k].update('')
 
     def copypaste(self, values):
-        rows = values[self.key_table]
-        if not rows:
+        idx_selected_rows = values[self.key_table]
+        if not idx_selected_rows:
             return
-        data = self.table_data[rows[0]]
+        data = self.table_data[idx_selected_rows[0]]
         for k, d in zip(self.key_inputs, data):
             self.window[k].update(d)
+
+    def copypaste_cell(self, row, col):
+        data = self.table_data[row][col]
+        self.window[self.key_inputs[col]].update(data)
 
     def get_table_data(self, rows):
         return [self.table_data[r] for r in rows]
@@ -156,11 +192,19 @@ class TableWindow(BaseWindow):
         [print(f'Update: {update}') for update in updates]
 
     def delete(self, values):
+        rows = sorted(values[self.key_table])
+        if not rows:
+            return
+        # Confirm deletion
+        #loc = self.get_widget_location(self.key_delete)
+        #ret = sg.popup_ok_cancel('Delete selected rows?', keep_on_top=True, location=loc)
+        #if ret == 'Cancel':
+        #    return
+        # Delete data
+        data = self.get_table_data(rows)
         table = self.util.tableop.get_tables(targets=[self.tname])[0]
         pk, pkidx = table.pk, table.pkidx
-        rows = sorted(values[self.key_table])
-        data = self.get_table_data(rows)
-        pkvals = [d[pkidx] for d in data]
+        pkvals = [f'"{d[pkidx]}"' for d in data]
         ret = self.dbop.delete_by_pk(self.tname, pk, pkvals, ignore_error=True)
         if ret.is_error:
             return
@@ -177,6 +221,13 @@ class TableWindow(BaseWindow):
     def save_as_csv(self, path):
         from .command.common import save_table_data_as_csv
         save_table_data_as_csv(self.table, path)
+
+    def sort(self, idx_column):
+        self.table_data.sort(key=lambda k: k[idx_column], reverse=self.sort_reverse)
+        self.table.update(self.table_data)
+        self.sort_reverse = not self.sort_reverse
+
+    # <--- handle
 
 
 class TableUpdateWindow(BaseWindow):

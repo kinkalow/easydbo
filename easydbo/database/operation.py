@@ -43,8 +43,8 @@ class DatabaseOperation:
     # Select --->
 
     def _select(self, query, ret_flat, **kwargs):
-        info = self.execute(query, do_fetchall=True, **kwargs)
-        rows = info.rows
+        self.execute(query, **kwargs)
+        rows = self.fetchall()
         return [str(d) for r in rows for d in r] if ret_flat else [[str(d) for d in r] for r in rows]
 
     def select(self, table, columns, where='', ret_flat=False, **kwargs):
@@ -75,7 +75,7 @@ class DatabaseOperation:
     def delete_by_pk(self, table, pk, pvs, **kwargs):
         '''
         table: str    : table name
-        pk   : str    : primary key
+        pk   : str    : table column name for primary key
         pvs  : 1D list: primary values
         '''
         pvs_str = f'({pvs[0]})' if len(pvs) == 1 else str(tuple(pvs))
@@ -116,9 +116,8 @@ class DatabaseOperation:
         if print_error:
             Log.error(errors, traceback=True, ignore_exit=False)
 
-    def execute(self, query, data=[], multi=False, do_fetchall=False, **kwargs):
+    def execute(self, query, data=[], multi=False, **kwargs):
         class Info:
-            rows = [()]
             is_error = False
             error_content = ''
         info = Info()
@@ -127,8 +126,6 @@ class DatabaseOperation:
                 self.cursor.executemany(query, data)
             else:
                 self.cursor.execute(query, multi)
-            if do_fetchall:
-                info.rows = self.cursor.fetchall()
         except Exception as e:
             info.is_error = True
             info.error_content = str(e)
@@ -146,6 +143,9 @@ class DatabaseOperation:
     def commit(self):
         if self.is_connect:
             self.conn.commit()
+
+    def fetchall(self):
+        return self.cursor.fetchall()
 
     def rollback(self):
         if self.is_connect:
