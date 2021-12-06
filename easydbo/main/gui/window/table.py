@@ -22,16 +22,18 @@ class TableWindow(BaseWindow):
         self.key_copypaste = f'{prefkey}copypaste'
         self.key_print = f'{prefkey}print'
         self.key_save = f'{prefkey}save'
+        self.key_shellrun = f'{prefkey}shellrun'
+        self.key_shellcmd = f'{prefkey}shellcmd'
+        #self.key_shellcmd_enter = f'{self.key_shellcmd}.enter'  # bind
         self.key_filter = f'{prefkey}filter'
         self.key_update = f'{prefkey}update'
         self.key_delete = f'{prefkey}delete'
         self.key_table = f'{prefkey}table'
-        self.key_table_rightclick = f'{prefkey}table.rightclick'  # bind
+        self.key_table_rightclick = f'{self.key_table}.rightclick'  # bind
         #
         self.key_rightclick_copypastecell = 'CopyPasteCell'
-        self.key_rightclick_sort = 'Sort'
 
-        self.rightclick_commands = [self.key_rightclick_copypastecell, self.key_rightclick_sort]
+        self.rightclick_commands = [self.key_rightclick_copypastecell]
         layout = [
             [sg.Text(f' {tname} ', **attr.text_table, key=self.key_tname)],
             [sg.Text(c, **attr.base_text, key=self.key_columns[i], size=(20, 1)) for i, c in enumerate(self.columns)],
@@ -42,13 +44,29 @@ class TableWindow(BaseWindow):
             ],
             [sg.Text()],
             [
-                sg.Button('CopyPaste', **attr.base_button_with_color_safety, key=self.key_copypaste),
-                sg.Button('Print', **attr.base_button_with_color_safety, key=self.key_print),
-                sg.InputText(**attr.base_inputtext, key=self.key_save, visible=False, enable_events=True),
-                sg.FileSaveAs('Save', **attr.base_button_with_color_safety, file_types=(('CSV', '.csv'), )),
-                sg.Button('Filter', **attr.base_button_with_color_safety, key=self.key_filter),
-                sg.Button('Update', **attr.base_button_with_color_warning, key=self.key_update),
-                sg.Button('Delete', **attr.base_button_with_color_danger, key=self.key_delete),
+                sg.Frame('All', [
+                    [
+                        sg.Button('Print', **attr.base_button_with_color_safety, key=self.key_print),
+                        sg.InputText(**attr.base_inputtext, key=self.key_save, visible=False, enable_events=True),
+                        sg.FileSaveAs('Save', **attr.base_button_with_color_safety, file_types=(('CSV', '.csv'), )),
+                        sg.Button('Filter', **attr.base_button_with_color_safety, key=self.key_filter),
+                    ],
+                    [
+                        sg.Button('Run', **attr.base_button_with_color_warning, key=self.key_shellrun),
+                        sg.InputText('', **attr.base_inputtext, key=self.key_shellcmd),
+                    ]
+                ],
+                title_location=sg.TITLE_LOCATION_RIGHT,
+                )
+            ],
+            [
+                sg.Frame('Selected', [[
+                    sg.Button('CopyPaste', **attr.base_button_with_color_safety, key=self.key_copypaste),
+                    sg.Button('Update', **attr.base_button_with_color_warning, key=self.key_update),
+                    sg.Button('Delete', **attr.base_button_with_color_danger, key=self.key_delete),
+                ]],
+                title_location=sg.TITLE_LOCATION_RIGHT,
+                )
             ],
             [sg.Table(
                 [['' for _ in range(len(self.columns))]],
@@ -75,13 +93,16 @@ class TableWindow(BaseWindow):
         # Table
         self.table = self.window[self.key_table]
         self.table_data = self._show_table_data()
-        self.table.bind('<Button-3>', f'.{self.key_table_rightclick.split(".")[-1]}')
+
+        # Bind
+        self.window[self.key_table].bind('<Button-3>', f'.{self.key_table_rightclick.split(".")[-1]}')
+        #self.window[self.key_shellcmd].bind('<Enter>', f'.{self.key_shellcmd_enter.split(".")[-1]}')  # Slow
 
     def _show_table_data(self):
         query = f'SELECT * FROM {self.tname};'
         ret = self.dbop.execute(query, ignore_error=True)
         if ret.is_error:
-            print(f'Something is wrong\n{ret}')
+            print(f'[Error] Something is wrong\n{ret}')
             return self.close()
         rows = self.dbop.fetchall()
         self.table.update(rows)
@@ -99,6 +120,14 @@ class TableWindow(BaseWindow):
             self.insert(values)
         elif event == self.key_clear:
             self.clear()
+        elif event == self.key_print:
+            self.print_table_data()
+        elif event == self.key_save:
+            path = values[self.key_save]
+            self.save_as_csv(path)
+        #elif event == self.key_shellrun or event == self.key_shellcmd_enter:
+        elif event == self.key_shellrun:
+            self.shellrun(values[self.key_shellcmd])
         elif event == self.key_copypaste:
             self.copypaste(values)
         elif event == self.key_filter:
@@ -107,15 +136,12 @@ class TableWindow(BaseWindow):
             self.update(values)
         elif event == self.key_delete:
             self.delete(values)
-        elif event == self.key_print:
-            self.print_table_data()
-        elif event == self.key_save:
-            path = values[self.key_save]
-            self.save_as_csv(path)
         elif (isinstance(event, tuple) and event[0:2] == (self.key_table, '+CICKED+')):  # On table
             row, col = event[2]
             if row == -1:  # True when header line clicked
                 self.sort(col)
+            #else:
+            #    self.input_row(row - 1)
         elif event == self.key_table_rightclick:
             e = self.table.user_bind_event
             region = self.table.Widget.identify_region(e.x, e.y)
@@ -125,7 +151,6 @@ class TableWindow(BaseWindow):
                 row = self.table.Widget.identify_row(e.y)
                 row = int(row) if row else 0
                 col = int(self.table.Widget.identify_column(e.x).replace('#', ''))
-                print(row, col)
                 self.rightclick_location = (row, col)
             else:
                 self.rightclick_location = (-1, -1)
@@ -133,23 +158,23 @@ class TableWindow(BaseWindow):
             if self.rightclick_location == (-1, -1):
                 return
             row, col = self.rightclick_location[0] - 1, self.rightclick_location[1] - 1
-            if event == self.key_rightclick_sort:
-                self.sort(col)
-            elif event == self.key_rightclick_copypastecell:
+            if event == self.key_rightclick_copypastecell:
                 if row == -1:
                     return
                 else:
                     self.copypaste_cell(row, col)
 
     def insert(self, values):
-        data = [self.window[k].get() for k in self.key_inputs]
+        data = [str(self.window[k].get()) for k in self.key_inputs]
+        if all([True if d else False for d in data]) is False:
+            return
         ret = self.dbop.insert(self.tname, self.columns, [data], ignore_error=True)
         if ret.is_error:
             return
         self.dbop.commit()
         self.table_data.insert(0, data)
         self.table.update(self.table_data)
-        print(f'Insert: {data}')
+        print(f'[Insert] {data}')
 
     def clear(self):
         for k in self.key_inputs:
@@ -189,7 +214,7 @@ class TableWindow(BaseWindow):
         for r, u in zip(rows, updates):
             self.table_data[r] = u
         self.table.update(self.table_data)
-        [print(f'Update: {update}') for update in updates]
+        [print(f'[Update] {update}') for update in updates]
 
     def delete(self, values):
         rows = sorted(values[self.key_table])
@@ -204,14 +229,14 @@ class TableWindow(BaseWindow):
         data = self.get_table_data(rows)
         table = self.util.tableop.get_tables(targets=[self.tname])[0]
         pk, pkidx = table.pk, table.pkidx
-        pkvals = [f'"{d[pkidx]}"' for d in data]
+        pkvals = [d[pkidx] if isinstance(d[pkidx], str) else f'"{d[pkidx]}"' for d in data]
         ret = self.dbop.delete_by_pk(self.tname, pk, pkvals, ignore_error=True)
         if ret.is_error:
             return
         self.dbop.commit()
         [self.table_data.pop(r - i) for i, r in enumerate(rows)]
         self.table.update(self.table_data)
-        [print(f'Delete: {list(d)}') for d in data]
+        [print(f'[Delete] {list(d)}') for d in data]
 
     def print_table_data(self):
         from .command.common import print_table_data
@@ -222,10 +247,36 @@ class TableWindow(BaseWindow):
         from .command.common import save_table_data_as_csv
         save_table_data_as_csv(self.table, path)
 
+    def shellrun(self, cmd):
+        import tempfile
+        import subprocess
+        from .command.common import save_table_data_as_csv
+        fp = tempfile.NamedTemporaryFile(mode='w+')
+        path = fp.name
+        save_table_data_as_csv(self.table, path, show_save_message=False)
+        if not cmd:
+            cmd = f'column -t -s , {path}'
+        elif cmd.startswith('-'):
+            cmd = f'{cmd[1:]}'.replace('<f>', path)
+        else:
+            cmd = f'column -t -s , {path} | {cmd}'
+        print(f'[Command] {cmd}')
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        out, err = p.communicate()
+        out, err = out.decode(), err.decode()
+        if out != '':
+            print(out)
+        if err != '':
+            print(err)
+        fp.close()
+
     def sort(self, idx_column):
         self.table_data.sort(key=lambda k: k[idx_column], reverse=self.sort_reverse)
         self.table.update(self.table_data)
         self.sort_reverse = not self.sort_reverse
+
+    #def input_row(self, row):
+    #    print(self.table_data[row])
 
     # <--- handle
 
