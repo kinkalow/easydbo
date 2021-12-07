@@ -114,5 +114,6 @@ class QueryResultWindow(BaseWindow):
         self.winmgr.add_window(win)
 
     def save_as_csv(self, path):
-        from .command.common import save_table_data_as_csv
-        save_table_data_as_csv(self.window[self.key_table], path)
+        from .command.common import save_table_data
+        table = self.window[self.key_table]
+        save_table_data(path, table.ColumnHeadings, table.get())

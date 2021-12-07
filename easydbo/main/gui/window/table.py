@@ -1,6 +1,8 @@
 import PySimpleGUI as sg
+from .filter import FilterWindow
 from .base import BaseWindow
 from .layout.common import Attribution as attr
+from .command.common import save_table_data, execute_table_command, make_grep_command
 
 class TableWindow(BaseWindow):
     def __init__(self, tname, util, parent_loc, on_close=None):
@@ -14,28 +16,30 @@ class TableWindow(BaseWindow):
         self.rightclick_location = (-1, -1)
 
         self.prefkey = prefkey = f'_table{tname}__.'
-        self.key_tname = f'{prefkey}{tname}'
         self.key_columns = [f'{prefkey}{c}' for c in self.columns]
         self.key_inputs = [f'{prefkey}{c}.input' for c in self.columns]
         self.key_insert = f'{prefkey}insert'
         self.key_clear = f'{prefkey}reset'
-        self.key_copypaste = f'{prefkey}copypaste'
-        self.key_print = f'{prefkey}print'
         self.key_save = f'{prefkey}save'
-        self.key_shellrun = f'{prefkey}shellrun'
-        self.key_shellcmd = f'{prefkey}shellcmd'
-        #self.key_shellcmd_enter = f'{self.key_shellcmd}.enter'  # bind
+        self.key_printall = f'{prefkey}printall'
         self.key_filter = f'{prefkey}filter'
+        self.key_greprun = f'{prefkey}grepbtn'
+        self.key_greptext = f'{prefkey}greptext'
+        self.key_copypaste = f'{prefkey}copypaste'
+        self.key_printselect = f'{prefkey}printselect'
+        #self.key_shellcmd_enter = f'{self.key_greptext}.enter'  # bind
         self.key_update = f'{prefkey}update'
         self.key_delete = f'{prefkey}delete'
         self.key_table = f'{prefkey}table'
         self.key_table_rightclick = f'{self.key_table}.rightclick'  # bind
+        self.key_table_doubleclick = f'{self.key_table}.doubleclick'  # bind
         #
         self.key_rightclick_copypastecell = 'CopyPasteCell'
+        self.key_rightclick_printcell = 'PrintCell'
 
-        self.rightclick_commands = [self.key_rightclick_copypastecell]
+        self.rightclick_commands = [self.key_rightclick_copypastecell, self.key_rightclick_printcell]
         layout = [
-            [sg.Text(f' {tname} ', **attr.text_table, key=self.key_tname)],
+            [sg.Text(f' {tname} ', **attr.text_table)],
             [sg.Text(c, **attr.base_text, key=self.key_columns[i], size=(20, 1)) for i, c in enumerate(self.columns)],
             [sg.InputText('', **attr.base_inputtext, key=self.key_inputs[i], size=(20, 1)) for i, c in enumerate(self.columns)],
             [
@@ -46,14 +50,12 @@ class TableWindow(BaseWindow):
             [
                 sg.Frame('All', [
                     [
-                        sg.Button('Print', **attr.base_button_with_color_safety, key=self.key_print),
                         sg.InputText(**attr.base_inputtext, key=self.key_save, visible=False, enable_events=True),
                         sg.FileSaveAs('Save', **attr.base_button_with_color_safety, file_types=(('CSV', '.csv'), )),
+                        sg.Button('Print', **attr.base_button_with_color_safety, key=self.key_printall),
                         sg.Button('Filter', **attr.base_button_with_color_safety, key=self.key_filter),
-                    ],
-                    [
-                        sg.Button('Run', **attr.base_button_with_color_warning, key=self.key_shellrun),
-                        sg.InputText('', **attr.base_inputtext, key=self.key_shellcmd),
+                        sg.Button('GrepRun', **attr.base_button_with_color_warning, key=self.key_greprun),
+                        sg.InputText('', **attr.base_inputtext, key=self.key_greptext),
                     ]
                 ],
                 title_location=sg.TITLE_LOCATION_RIGHT,
@@ -62,6 +64,7 @@ class TableWindow(BaseWindow):
             [
                 sg.Frame('Selected', [[
                     sg.Button('CopyPaste', **attr.base_button_with_color_safety, key=self.key_copypaste),
+                    sg.Button('Print', **attr.base_button_with_color_safety, key=self.key_printselect),
                     sg.Button('Update', **attr.base_button_with_color_warning, key=self.key_update),
                     sg.Button('Delete', **attr.base_button_with_color_danger, key=self.key_delete),
                 ]],
@@ -96,7 +99,8 @@ class TableWindow(BaseWindow):
 
         # Bind
         self.window[self.key_table].bind('<Button-3>', f'.{self.key_table_rightclick.split(".")[-1]}')
-        #self.window[self.key_shellcmd].bind('<Enter>', f'.{self.key_shellcmd_enter.split(".")[-1]}')  # Slow
+        self.window[self.key_table].bind('<Double-Button-1>', f'.{self.key_table_doubleclick.split(".")[-1]}')
+        #self.window[self.key_greptext].bind('<Enter>', f'.{self.key_shellcmd_enter.split(".")[-1]}')  # Slow
 
     def _show_table_data(self):
         query = f'SELECT * FROM {self.tname};'
@@ -120,16 +124,18 @@ class TableWindow(BaseWindow):
             self.insert(values)
         elif event == self.key_clear:
             self.clear()
-        elif event == self.key_print:
-            self.print_table_data()
         elif event == self.key_save:
             path = values[self.key_save]
             self.save_as_csv(path)
-        #elif event == self.key_shellrun or event == self.key_shellcmd_enter:
-        elif event == self.key_shellrun:
-            self.shellrun(values[self.key_shellcmd])
+        elif event == self.key_printall:
+            self.print_table_data(is_all=True)
+        #elif event == self.key_greprun or event == self.key_shellcmd_enter:
+        elif event == self.key_greprun:
+            self.greprun(values[self.key_greptext])
         elif event == self.key_copypaste:
             self.copypaste(values)
+        elif event == self.key_printselect:
+            self.print_table_data(rows=values[self.key_table])
         elif event == self.key_filter:
             self.filter(values)
         elif event == self.key_update:
@@ -158,11 +164,14 @@ class TableWindow(BaseWindow):
             if self.rightclick_location == (-1, -1):
                 return
             row, col = self.rightclick_location[0] - 1, self.rightclick_location[1] - 1
+            if row == -1:  # Ignore header line
+                return
             if event == self.key_rightclick_copypastecell:
-                if row == -1:
-                    return
-                else:
-                    self.copypaste_cell(row, col)
+                self.copypaste_cell(row, col)
+            elif event == self.key_rightclick_printcell:
+                self.print_cell(row, col)
+        elif event == self.key_table_doubleclick:
+            self.print_table_data(rows=values[self.key_table])
 
     def insert(self, values):
         data = [str(self.window[k].get()) for k in self.key_inputs]
@@ -188,15 +197,7 @@ class TableWindow(BaseWindow):
         for k, d in zip(self.key_inputs, data):
             self.window[k].update(d)
 
-    def copypaste_cell(self, row, col):
-        data = self.table_data[row][col]
-        self.window[self.key_inputs[col]].update(data)
-
-    def get_table_data(self, rows):
-        return [self.table_data[r] for r in rows]
-
     def filter(self, values):
-        from .filter import FilterWindow
         location = self.window.CurrentLocation()
         win = FilterWindow(self.tname, self.columns, self.table_data, self.util, location)
         self.util.winmgr.add_window(win)
@@ -205,7 +206,7 @@ class TableWindow(BaseWindow):
         rows = sorted(values[self.key_table])
         if not rows:
             return
-        data = self.get_table_data(rows)
+        data = [self.table_data[r] for r in rows]
         location = self.window.CurrentLocation()
         winobj = TableUpdateWindow(self, self.util, rows, self.tname, self.columns, data, self.table_data, location)
         self.util.winmgr.add_window(winobj)
@@ -226,7 +227,7 @@ class TableWindow(BaseWindow):
         #if ret == 'Cancel':
         #    return
         # Delete data
-        data = self.get_table_data(rows)
+        data = [self.table_data[r] for r in rows]
         table = self.util.tableop.get_tables(targets=[self.tname])[0]
         pk, pkidx = table.pk, table.pkidx
         pkvals = [d[pkidx] if isinstance(d[pkidx], str) else f'"{d[pkidx]}"' for d in data]
@@ -238,42 +239,49 @@ class TableWindow(BaseWindow):
         self.table.update(self.table_data)
         [print(f'[Delete] {list(d)}') for d in data]
 
-    def print_table_data(self):
-        from .command.common import print_table_data
-        data = self.table.get()
-        print_table_data(data)
-
     def save_as_csv(self, path):
-        from .command.common import save_table_data_as_csv
-        save_table_data_as_csv(self.table, path)
+        save_table_data(path, self.table.ColumnHeadings, self.table.get())
 
-    def shellrun(self, cmd):
-        import tempfile
-        import subprocess
-        from .command.common import save_table_data_as_csv
-        fp = tempfile.NamedTemporaryFile(mode='w+')
-        path = fp.name
-        save_table_data_as_csv(self.table, path, show_save_message=False)
-        if not cmd:
-            cmd = f'column -t -s , {path}'
-        elif cmd.startswith('-'):
-            cmd = f'{cmd[1:]}'.replace('<f>', path)
-        else:
-            cmd = f'column -t -s , {path} | {cmd}'
-        print(f'[Command] {cmd}')
-        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-        out, err = p.communicate()
-        out, err = out.decode(), err.decode()
-        if out != '':
-            print(out)
-        if err != '':
-            print(err)
-        fp.close()
+    # ---> use shell command
+
+    def _get_columns_data(self, columns, data):
+        columns = columns if columns else self.table.ColumnHeadings
+        data = data if data != [[]] else self.table.get()
+        return columns, data
+
+    def greprun(self, patten, columns=[], data=[[]], delimiter=',', show_command=True):
+        patten = make_grep_command(patten)
+        if not patten:
+            return
+        columns, data = self._get_columns_data(columns, data)
+        cmd = f'column -t -s {delimiter} {{path}} | {patten}'
+        execute_table_command(cmd, columns, data, delimiter, show_command)
+
+    def prettyrun(self, columns=[], data=[[]], delimiter=',', show_command=False):
+        columns, data = self._get_columns_data(columns, data)
+        cmd = f'column -t -s {delimiter} {{path}}'
+        execute_table_command(cmd, columns, data, delimiter, show_command)
+
+    def print_table_data(self, rows=[], is_all=False):
+        if not rows and not is_all:
+            return
+        data = [self.table_data[r] for r in rows] if rows else self.table_data
+        self.prettyrun(data=data)
+
+    # <--- use shell command
 
     def sort(self, idx_column):
         self.table_data.sort(key=lambda k: k[idx_column], reverse=self.sort_reverse)
         self.table.update(self.table_data)
         self.sort_reverse = not self.sort_reverse
+
+    def copypaste_cell(self, row, col):
+        data = self.table_data[row][col]
+        self.window[self.key_inputs[col]].update(data)
+
+    def print_cell(self, row, col):
+        data = self.table.get()[row][col]
+        print(data)
 
     #def input_row(self, row):
     #    print(self.table_data[row])
