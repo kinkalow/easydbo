@@ -16,8 +16,9 @@ class TableWindow(BaseWindow):
         self.rightclick_location = (-1, -1)
 
         self.prefkey = prefkey = f'_table{tname}__.'
-        self.key_columns = [f'{prefkey}{c}' for c in self.columns]
+        #self.key_columns = [f'{prefkey}{c}' for c in self.columns]
         self.key_inputs = [f'{prefkey}{c}.input' for c in self.columns]
+        self.key_candidates = [f'{prefkey}{c}.candidate.{i}' for i, c in enumerate(self.columns)]
         self.key_insert = f'{prefkey}insert'
         self.key_clear = f'{prefkey}reset'
         self.key_save = f'{prefkey}save'
@@ -40,7 +41,7 @@ class TableWindow(BaseWindow):
         self.rightclick_commands = [self.key_rightclick_copypastecell, self.key_rightclick_printcell]
         layout = [
             [sg.Text(f' {tname} ', **attr.text_table)],
-            [sg.Text(c, **attr.base_text, key=self.key_columns[i], size=(20, 1)) for i, c in enumerate(self.columns)],
+            [sg.Text(c, **attr.base_text, key=self.key_candidates[i], size=(20, 1), enable_events=True, background_color='#79799c') for i, c in enumerate(self.columns)],
             [sg.InputText('', **attr.base_inputtext, key=self.key_inputs[i], size=(20, 1)) for i, c in enumerate(self.columns)],
             [
                 sg.Button('Insert', **attr.base_button_with_color_warning, key=self.key_insert),
@@ -91,7 +92,7 @@ class TableWindow(BaseWindow):
             finalize=True,
             location=(30, 30),
         )
-        self.window.move(parent_loc[0], parent_loc[1] + 30)
+        self.window.move(parent_loc[0], parent_loc[1] + 80)
 
         # Table
         self.table = self.window[self.key_table]
@@ -120,7 +121,10 @@ class TableWindow(BaseWindow):
     # handle --->
 
     def handle(self, event, values):
-        if event == self.key_insert:
+        if event in self.key_candidates:
+            idx = int(event.split('.')[-1])
+            self.launch_candidate_window(idx)
+        elif event == self.key_insert:
             self.insert(values)
         elif event == self.key_clear:
             self.clear()
@@ -172,6 +176,14 @@ class TableWindow(BaseWindow):
                 self.print_cell(row, col)
         elif event == self.key_table_doubleclick:
             self.print_table_data(rows=values[self.key_table])
+
+    def launch_candidate_window(self, idx):
+        from .candidate import CandidateWindow
+        data = [d[idx] for d in self.table_data]
+        element = self.window[self.key_inputs[idx]]
+        location = self.window.CurrentLocation()
+        win = CandidateWindow(data, self.util, element, location)
+        self.util.winmgr.add_window(win)
 
     def insert(self, values):
         data = [str(self.window[k].get()) for k in self.key_inputs]
@@ -282,9 +294,6 @@ class TableWindow(BaseWindow):
     def print_cell(self, row, col):
         data = self.table.get()[row][col]
         print(data)
-
-    #def input_row(self, row):
-    #    print(self.table_data[row])
 
     # <--- handle
 
