@@ -16,9 +16,6 @@ class Util:
         self.columns = tableop.get_columns()
         self.fullcolumns = tableop.get_columns(full=True)
 
-    def get_column(self, tname):
-        return self.tableop.get_columns([tname])[0]
-
     def call(self, func_args):
         if func_args:
             func, args = func_args[0], func_args[1:]
@@ -33,19 +30,23 @@ class Util:
     def make_timestamp_prefix(self, prefix):
         return f'_{prefix}{int(datetime.now().timestamp())}__.'
 
+
 class WindowManger():
 
     def __init__(self, configs, aliases, tableop, dbop):
         util = Util(self, configs, aliases, tableop, dbop)
-        select = SelectionWindow(self, util)
+        select = SelectionWindow(util)
         self.windows = {select.get_window(): select}
         self.main_window = select.get_window()
 
     def add_window(self, winobj):
         self.windows.update({winobj.get_window(): winobj})
 
+    def remove_window(self, window):
+        self.windows.pop(window)
+
     def close(self):
-        [w.close() for w in self.windows.values() if w.window]
+        [w.close() for w in list(self.windows.values()) if w.window]
 
     def run(self):
         while True:

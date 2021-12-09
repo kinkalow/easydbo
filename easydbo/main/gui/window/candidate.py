@@ -1,79 +1,71 @@
+import re
 import PySimpleGUI as sg
 from .base import BaseWindow
 from .layout.common import Attribution as attr
-import re
 
 class CandidateWindow(BaseWindow):
-    def __init__(self, data, util, parent_element, parent_loc):
+    def __init__(self, data, util, parent_element, location):
+        super().__init__(util.winmgr)
+
         self.data = sorted(set([str(d) for d in data]))
+        self.data = [[d] for d in sorted(set([str(d) for d in data]))]
         self.parent_element = parent_element
         self.num_buttons = min([30, len(self.data)])
 
         prefkey = util.make_timestamp_prefix('candidate')
         self.key_input = f'{prefkey}input'
-        self.key_numbercandidate = f'{prefkey}'
-        self.key_candidate_buttons = [f'{prefkey}button.{i}' for i in range(self.num_buttons)]
+        self.key_numbercandidate = f'{prefkey}numbercandidate'
+        self.key_cancel = f'{prefkey}cancel'
+        self.key_table = f'{prefkey}table'
         #
         self.key_input_return = f'{self.key_input}.return'  # bind
 
+        table_attr = attr.base_table.copy()
+        table_attr.pop('font')
         layout = [
             [
                 sg.InputText('', **attr.base_inputtext_with_size, key=self.key_input, enable_events=True),
                 sg.Text(f'{len(self.data)} / {len(self.data)}', **attr.base_text_with_size, key=self.key_numbercandidate),
+                sg.Button('Cancel', **attr.base_button_with_color_safety, key=self.key_cancel),
             ]
         ] + [
-            [sg.Button(d, **attr.base_button_with_color_safety, key=k, expand_x=True)]
-            for d, k in zip(self.data, self.key_candidate_buttons)
+            [
+                sg.Table(self.data, **table_attr, font=('', 14), key=self.key_table, headings=[''], enable_click_events=True, expand_x=True, expand_y=True, justification='left', num_rows=self.num_buttons, header_background_color=sg.DEFAULT_BACKGROUND_COLOR)
+            ]
         ]
-        #self.key_candidates = f'{prefkey}candidates'
-        #[sg.Multiline(self.find_candidates(), **attr.base_multiline, key=self.key_candidates, expand_x=True, expand_y=True)],
 
         self.window = sg.Window(
             'EasyDBO Candidate',
             layout,
-            size=(1200, 500),
+            size=(1300, 800),
             resizable=True,
             finalize=True,
-            #no_titlebar=True,
+            no_titlebar=True,
+            location=location,
         )
-        self.window.move(parent_loc[0], parent_loc[1] + 30)
 
         self.window[self.key_input].bind('<Return>', f'.{self.key_input_return.split(".")[-1]}')
 
     def handle(self, event, values):
         if event == self.key_input:
-            self.candidate(values[self.key_input])
-        elif event in self.key_candidate_buttons:
-            candidate = self.window[event].get_text()
-            self.notify(candidate)
+            self.find_candidate(values[self.key_input])
+        elif (isinstance(event, tuple) and event[0:2] == (self.key_table, '+CICKED+')):  # On table
+            row = event[2][0]
+            if row is None or row == -1:  # Header line
+                return
+            self.notify(row)
         elif event == self.key_input_return:
-            candidate = values[self.key_input]
-            self.notify(candidate)
+            self.notify(0)
+        elif event == self.key_cancel:
+            self.close()
 
-    #def find_candidates(self, pattern=''):
-    #    if pattern:
-    #        candidate = ''
-    #        for d in self.data:
-    #            if re.search(pattern, d):
-    #                candidate += f'{d} '
-    #        return candidate.rstrip()
-    #    else:
-    #        return ' '.join(self.data)
-    def find_candidates(self, pattern=''):
-        if pattern:
-            return [d for d in self.data if re.search(pattern, d)]
-        else:
-            return self.data
-
-    def candidate(self, pattern):
-        candidates = self.find_candidates(pattern)
+    def find_candidate(self, pattern=''):
+        candidates = [[d[0]] for d in self.data if re.search(pattern, d[0])] if pattern else self.data
+        self.window[self.key_table].update(candidates)
         num_candidates = len(candidates)
-        if len(candidates) < self.num_buttons:
-            candidates += ['' for _ in range(self.num_buttons - len(candidates))]
-        for c, k in zip(candidates, self.key_candidate_buttons):
-            self.window[k].update(c)
         self.window[self.key_numbercandidate].update(f'{num_candidates} / {len(self.data)}')
 
-    def notify(self, value):
-        self.parent_element.update(value)
+    def notify(self, row):
+        candidate = self.window[self.key_table].get()[row][0]
+        self.parent_element.update(candidate)
         self.close()

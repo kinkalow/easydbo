@@ -10,8 +10,7 @@ class Attribution:
     base_inputtext = {'font': ('', 12)}
     base_multiline = {'font': ('', 12)}
     base_text = {'font': ('', 12)}
-    base_table = {'font': ('', 12), 'selected_row_colors': 'red on yellow',
-                  'justification': 'right', 'auto_size_columns': False}
+    base_table = {'font': ('', 13), 'selected_row_colors': 'red on yellow', 'auto_size_columns': False}
 
     base_button_with_color_safety = {**base_button, 'button_color': color_safety}
     base_button_with_color_warning = {**base_button, 'button_color': color_warning}

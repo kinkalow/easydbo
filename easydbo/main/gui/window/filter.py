@@ -4,7 +4,9 @@ from .base import BaseWindow
 from .layout.common import Attribution as attr
 
 class FilterWindow(BaseWindow):
-    def __init__(self, tname, columns, tdata, util, parent_loc):
+    def __init__(self, tname, columns, tdata, util, location):
+        super().__init__(util.winmgr)
+
         self.columns = columns
         self.tdata = tdata
         self.util = util
@@ -42,17 +44,19 @@ class FilterWindow(BaseWindow):
                 key=self.key_table,
                 headings=columns,
                 col_widths=[20 for _ in range(len(columns))],
+                expand_x=True,
+                expand_y=True,
             )],
         ]
 
         self.window = sg.Window(
             'EasyDBO Filter',
             layout,
-            size=(1200, 500),
+            size=(1300, 800),
             resizable=True,
             finalize=True,
+            location=location,
         )
-        self.window.move(parent_loc[0], parent_loc[1] + 30)
 
         self.table = self.window[self.key_table]
 

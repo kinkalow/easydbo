@@ -12,8 +12,8 @@ from .layout.common import Attribution as attr
 #        ]
 
 class SaveAsAliasWindow(BaseWindow):
-    def __init__(self, winmgr, util, query, parent_loc=None):
-        super().__init__()
+    def __init__(self, util, query, location):
+        super().__init__(util.winmgr)
 
         # Layout
         prefkey = util.make_timestamp_prefix('saveasalias')
@@ -26,12 +26,12 @@ class SaveAsAliasWindow(BaseWindow):
                 sg.Button('Close', **attr.base_button_with_color_safety),
             ],
             [
-                sg.Text('Alias', size=(5, 1)),
-                sg.InputText('', key=self.key_alias),
+                sg.Text('Alias', **attr.base_text, size=(5, 1)),
+                sg.InputText('', **attr.base_inputtext, key=self.key_alias),
             ],
             [
-                sg.Text('Query', size=(5, 1)),
-                sg.Multiline(query, key=self.key_alias, expand_x=True, expand_y=True, size=(1000, 500)),
+                sg.Text('Query', **attr.base_text, size=(5, 1)),
+                sg.Multiline(query, **attr.base_multiline, key=self.key_alias, expand_x=True, expand_y=True, size=(1300, 500)),
             ],
         ]
 
@@ -39,12 +39,11 @@ class SaveAsAliasWindow(BaseWindow):
         self.window = sg.Window(
             'EasyDBO SaveAsAlias',
             self.layout,
-            size=(1000, 500),
+            size=(1300, 500),
             resizable=True,
             finalize=True,
+            location=location,
         )
-        if parent_loc:
-            self.window.move(parent_loc[0], parent_loc[1] + 30)
 
     #def handle(self, event, values):
     #    if event == self.key:

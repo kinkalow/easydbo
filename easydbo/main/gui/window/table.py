@@ -5,15 +5,19 @@ from .layout.common import Attribution as attr
 from .command.common import save_table_data, execute_table_command, make_grep_command
 
 class TableWindow(BaseWindow):
-    def __init__(self, tname, util, parent_loc, on_close=None):
+    def __init__(self, tname, util, location):
+        super().__init__(util.winmgr)
+
         self.tname = tname
         self.util = util
         #
         self.dbop = util.dbop
-        self.columns = util.get_column(tname)
-        self.on_close = on_close
+        self.columns = util.tableop.get_columns([tname])[0]
         self.sort_reverse = True
         self.rightclick_location = (-1, -1)
+        #
+        self.filter_windows = None
+        self.candidate_windows = [None] * len(self.columns)
 
         self.prefkey = prefkey = f'_table{tname}__.'
         #self.key_columns = [f'{prefkey}{c}' for c in self.columns]
@@ -87,12 +91,11 @@ class TableWindow(BaseWindow):
         self.window = sg.Window(
             f'EasyDBO {tname}',
             layout,
-            size=(1200, 800),
+            size=(1300, 800),
             resizable=True,
             finalize=True,
-            location=(30, 30),
+            location=location,
         )
-        self.window.move(parent_loc[0], parent_loc[1] + 80)
 
         # Table
         self.table = self.window[self.key_table]
@@ -113,17 +116,12 @@ class TableWindow(BaseWindow):
         self.table.update(rows)
         return rows
 
-    def close(self):
-        self.window.close()
-        self.window = None
-        self.util.call(self.on_close)
-
     # handle --->
 
     def handle(self, event, values):
         if event in self.key_candidates:
             idx = int(event.split('.')[-1])
-            self.launch_candidate_window(idx)
+            self.open_candidate_window(idx)
         elif event == self.key_insert:
             self.insert(values)
         elif event == self.key_clear:
@@ -177,13 +175,16 @@ class TableWindow(BaseWindow):
         elif event == self.key_table_doubleclick:
             self.print_table_data(rows=values[self.key_table])
 
-    def launch_candidate_window(self, idx):
+    def open_candidate_window(self, idx):
+        if self.candidate_windows[idx] in self.util.winmgr.windows:
+            return
         from .candidate import CandidateWindow
         data = [d[idx] for d in self.table_data]
         element = self.window[self.key_inputs[idx]]
-        location = self.window.CurrentLocation()
+        location = self.get_location(widgetkey=self.key_inputs[idx], widgetx=True, widgety=True, dy=30)
         win = CandidateWindow(data, self.util, element, location)
         self.util.winmgr.add_window(win)
+        self.candidate_windows[idx] = win.get_window()
 
     def insert(self, values):
         data = [str(self.window[k].get()) for k in self.key_inputs]
@@ -210,16 +211,19 @@ class TableWindow(BaseWindow):
             self.window[k].update(d)
 
     def filter(self, values):
-        location = self.window.CurrentLocation()
+        if self.filter_windows in self.util.winmgr.windows:
+            return
+        location = self.get_location(widgetkey=self.key_filter, widgety=True, dy=60)
         win = FilterWindow(self.tname, self.columns, self.table_data, self.util, location)
         self.util.winmgr.add_window(win)
+        self.filter_windows = win.get_window()
 
     def update(self, values):
         rows = sorted(values[self.key_table])
         if not rows:
             return
         data = [self.table_data[r] for r in rows]
-        location = self.window.CurrentLocation()
+        location = self.get_location(widgetkey=self.key_update, widgety=True, dy=60)
         winobj = TableUpdateWindow(self, self.util, rows, self.tname, self.columns, data, self.table_data, location)
         self.util.winmgr.add_window(winobj)
 
@@ -234,7 +238,7 @@ class TableWindow(BaseWindow):
         if not rows:
             return
         # Confirm deletion
-        #loc = self.get_widget_location(self.key_delete)
+        #loc = self.get_location(widgetkey=self.key_delete, widgetx=True, widgety=True)
         #ret = sg.popup_ok_cancel('Delete selected rows?', keep_on_top=True, location=loc)
         #if ret == 'Cancel':
         #    return
@@ -299,7 +303,9 @@ class TableWindow(BaseWindow):
 
 
 class TableUpdateWindow(BaseWindow):
-    def __init__(self, parent, util, rows, tname, columns, selected_data, table_data, parent_loc):
+    def __init__(self, parent, util, rows, tname, columns, selected_data, table_data, location):
+        super().__init__(util.winmgr)
+
         self.parent = parent
         self.util = util
         self.rows = rows
@@ -324,11 +330,11 @@ class TableUpdateWindow(BaseWindow):
         self.window = sg.Window(
             f'EasyDBO {tname} Update',
             layout,
-            size=(1200, 400),
+            size=(1300, 400),
             resizable=True,
             finalize=True,
+            location=location,
         )
-        self.window.move(parent_loc[0], parent_loc[1] + 30)
 
     def handle(self, event, values):
         if event == self.key_update:

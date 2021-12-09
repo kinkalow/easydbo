@@ -3,8 +3,9 @@ from .base import BaseLayout
 from .common import Attribution as attr
 from ..query import QueryResultWindow
 
-class FullJoinTab(BaseLayout):
-    def __init__(self, util):
+class FullJoinLayout(BaseLayout):
+    def __init__(self, selwin, util):
+        self.selwin = selwin
         self.util = util
 
         self.tableop = util.tableop
@@ -165,7 +166,8 @@ class FullJoinTab(BaseLayout):
         query, header, data = execute_query(self.dbop, sql)
 
         # Print data on new window
-        win = QueryResultWindow(self.util.winmgr, self.util, query, header, data)
+        location = self.selwin.get_location(dy=30)
+        win = QueryResultWindow(self.util, query, header, data, location)
         self.util.winmgr.add_window(win)
 
     def create_clause(self, values):

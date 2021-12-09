@@ -4,9 +4,9 @@ from .base import BaseWindow
 from .layout.common import Attribution as attr
 
 class QueryResultWindow(BaseWindow):
-    def __init__(self, winmgr, util, query, header, data, use_query_btn=True):
-        super().__init__()
-        self.winmgr = winmgr
+    def __init__(self, util, query, header, data, location, use_query_btn=True):
+        super().__init__(util.winmgr)
+
         self.util = util
         self.query = query
 
@@ -47,6 +47,7 @@ class QueryResultWindow(BaseWindow):
                     key=self.key_table,
                     headings=header,
                     col_widths=[20 for _ in range(length)],
+                    expand_y=True,
                 )
             ],
         ]
@@ -54,10 +55,10 @@ class QueryResultWindow(BaseWindow):
         self.window = sg.Window(
             'EasyDBO QueryResult',
             self.layout,
-            location=(4500, 200),
-            size=(1000, 300),
+            location=location,
+            size=(1300, 800),
             resizable=True,
-            finalize=True
+            finalize=True,
         )
 
     def get_table_data(self):
@@ -76,8 +77,8 @@ class QueryResultWindow(BaseWindow):
 
     def add_alias(self):
         from .save_as_alias import SaveAsAliasWindow
-        location = self.window.CurrentLocation()
-        win = SaveAsAliasWindow(self.winmgr, self.util, self.query, parent_loc=location)
+        location = self.get_location(dy=30)
+        win = SaveAsAliasWindow(self.util, self.query, location)
         self.winmgr.add_window(win)
 
     def grep(self):

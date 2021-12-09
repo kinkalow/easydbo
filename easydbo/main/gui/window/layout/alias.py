@@ -3,8 +3,9 @@ from .base import BaseLayout
 from .common import Attribution as attr
 from ..query import QueryResultWindow
 
-class AliasTab(BaseLayout):
-    def __init__(self, util):
+class AliasLayout(BaseLayout):
+    def __init__(self, selwin, util):
+        self.selwin = selwin
         self.util = util
 
         self.prefkey = prefkey = '_alias__.'
@@ -48,5 +49,6 @@ class AliasTab(BaseLayout):
     def query(self, sql):
         from easydbo.main.select.sql import execute_query
         query, header, data = execute_query(self.util.dbop, sql)
-        win = QueryResultWindow(self.util.winmgr, self.util, query, header, data)
+        location = self.selwin.get_location(dy=30)
+        win = QueryResultWindow(self.util, query, header, data, location)
         self.util.winmgr.add_window(win)

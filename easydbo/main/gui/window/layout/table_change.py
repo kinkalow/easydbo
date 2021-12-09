@@ -4,30 +4,29 @@ from ..table import TableWindow
 from .common import Attribution as attr
 
 class TableChangeLayout(BaseLayout):
-    def __init__(self, util):
+    def __init__(self, selwin, util):
+        self.selwin = selwin
         self.util = util
+        self.table_windows = {tname: None for tname in util.tnames}
 
         self.prefkey = prefkey = '_tablechange__.'
-        self.key_tnames = [f'{prefkey}{tn}' for tn in util.tnames]
+        self.key_tables = [f'{prefkey}{t}' for t in util.tnames]
+
         self.layout = [
-            [sg.Button(f' {tn} ', **attr.base_button_with_color_warning, key=self.key_tnames[i])
+            [sg.Button(f' {tn} ', **attr.base_button_with_color_warning, key=self.key_tables[i])
              for i, tn in enumerate(util.tnames)],
             [sg.Text('')],
         ]
-        self.tnames_twins = {}
 
     def handle(self, event, values):
-        if event not in self.key_tnames:
-            return
-        tname = event.replace(f'{self.prefkey}', '')
-        if tname in self.tnames_twins:
-            twindow = self.tnames_twins[tname]
-        else:
-            location = self.window.CurrentLocation()
-            twindow = TableWindow(tname, self.util, location,
-                                  on_close=[self.on_table_window_close, tname])
-            self.tnames_twins.update({tname: twindow})
-            self.util.winmgr.add_window(twindow)
+        if event in self.key_tables:
+            tname = event.split('.')[-1]
+            self.open_table(tname)
 
-    def on_table_window_close(self, tname):
-        self.tnames_twins.pop(tname)
+    def open_table(self, tname):
+        if self.table_windows[tname] in self.util.winmgr.windows:
+            return
+        location = self.selwin.get_location(dy=80)
+        win = TableWindow(tname, self.util, location)
+        self.util.winmgr.add_window(win)
+        self.table_windows[tname] = win.get_window()

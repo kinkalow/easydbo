@@ -1,17 +1,17 @@
 import PySimpleGUI as sg
 from .base import BaseWindow
 from .layout.table_change import TableChangeLayout
-from .layout.alias import AliasTab
-from .layout.fulljoin import FullJoinTab
+from .layout.alias import AliasLayout
+from .layout.fulljoin import FullJoinLayout
 
 class SelectionWindow(BaseWindow):
-    def __init__(self, winmgr, util):
-        super().__init__()
+    def __init__(self, util):
+        super().__init__(util.winmgr)
 
         # Layout
-        tblchg = TableChangeLayout(util)
-        fulljoin = FullJoinTab(util)
-        alias = AliasTab(util)
+        tblchg = TableChangeLayout(self, util)
+        fulljoin = FullJoinLayout(self, util)
+        alias = AliasLayout(self, util)
         self.prefkey_clsobj = {tblchg.prefkey: tblchg,
                                fulljoin.prefkey: fulljoin,
                                alias.prefkey: alias}
@@ -27,7 +27,7 @@ class SelectionWindow(BaseWindow):
             'EasyDBO Selection',
             layout,
             location=(5000, 200),
-            size=(1200, 800),
+            size=(1300, 800),
             resizable=True,
             finalize=True,
         )
