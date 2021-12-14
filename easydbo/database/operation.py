@@ -1,3 +1,4 @@
+import re
 import getpass
 from mysql import connector
 from easydbo.output.log import Log
@@ -27,6 +28,13 @@ class DatabaseOperation:
             self.password = getpass.getpass('Enter database possword: ')
 
     # Get --->
+
+    def get_autoincrement(self, table, column):
+        query = f'''
+SELECT Min(_EASYDBO_TABLE.{column})+1 AS min_num FROM (SELECT {column} FROM {table} UNION ALL SELECT 0 AS {column}) _EASYDBO_TABLE LEFT JOIN {table} ON _EASYDBO_TABLE.{column} + 1 = {table}.{column} WHERE {table}.{column} IS NULL;
+'''.strip()
+        self.execute(query)
+        return self.fetchall()[0][0]
 
     def get_key_val_cond(self, keys, vlaues):
         return ' OR '.join([
@@ -78,8 +86,8 @@ class DatabaseOperation:
         pk   : str    : table column name for primary key
         pvs  : 1D list: primary values
         '''
-        pvs_str = f'({pvs[0]})' if len(pvs) == 1 else str(tuple(pvs))
-        where = f'{pk} in {pvs_str}'
+        targets = ', '.join([pv if isinstance(pv, str) and re.match(r'"|\'', pv) else f'"{pv}"' for pv in pvs])
+        where = f'{pk} in ({targets})'
         return self.delete(table, where, **kwargs)
 
     def delete(self, table, where='', **kwargs):

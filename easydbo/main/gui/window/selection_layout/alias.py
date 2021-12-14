@@ -1,6 +1,6 @@
 import PySimpleGUI as sg
 from .base import BaseLayout
-from .common import Attribution as attr
+from ..layout.common import Attribution as attr
 from ..query import QueryResultWindow
 
 class AliasLayout(BaseLayout):

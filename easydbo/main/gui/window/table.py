@@ -1,4 +1,5 @@
 import PySimpleGUI as sg
+import re
 from .filter import FilterWindow
 from .base import BaseWindow
 from .layout.common import Attribution as attr
@@ -12,12 +13,17 @@ class TableWindow(BaseWindow):
         self.util = util
         #
         self.dbop = util.dbop
-        self.columns = util.tableop.get_columns([tname])[0]
+        self.columns = util.tableop.get_columns([tname], full=True)[0]
         self.sort_reverse = True
         self.rightclick_location = (-1, -1)
         #
         self.filter_windows = None
         self.candidate_windows = [None] * len(self.columns)
+        #
+        table = self.util.tableop.get_tables(targets=[self.tname])[0]
+        self.pk = table.pk
+        self.pkidx = table.pkidx
+        self.pkauto = table.pkauto
 
         self.prefkey = prefkey = f'_table{tname}__.'
         #self.key_columns = [f'{prefkey}{c}' for c in self.columns]
@@ -188,6 +194,8 @@ class TableWindow(BaseWindow):
 
     def insert(self, values):
         data = [str(self.window[k].get()) for k in self.key_inputs]
+        if self.pkauto and not data[self.pkidx]:
+            data[self.pkidx] = self.dbop.get_autoincrement(self.tname, self.pk)
         if all([True if d else False for d in data]) is False:
             return
         ret = self.dbop.insert(self.tname, self.columns, [data], ignore_error=True)
@@ -244,10 +252,8 @@ class TableWindow(BaseWindow):
         #    return
         # Delete data
         data = [self.table_data[r] for r in rows]
-        table = self.util.tableop.get_tables(targets=[self.tname])[0]
-        pk, pkidx = table.pk, table.pkidx
-        pkvals = [d[pkidx] if isinstance(d[pkidx], str) else f'"{d[pkidx]}"' for d in data]
-        ret = self.dbop.delete_by_pk(self.tname, pk, pkvals, ignore_error=True)
+        pkvals = [d[self.pkidx] for d in data]
+        ret = self.dbop.delete_by_pk(self.tname, self.pk, pkvals, ignore_error=True)
         if ret.is_error:
             return
         self.dbop.commit()
@@ -267,7 +273,7 @@ class TableWindow(BaseWindow):
 
     def greprun(self, patten, columns=[], data=[[]], delimiter=',', show_command=True):
         patten = make_grep_command(patten)
-        if not patten:
+        if not patten or re.search(r'>', patten):  # Prevent redirection
             return
         columns, data = self._get_columns_data(columns, data)
         cmd = f'column -t -s {delimiter} {{path}} | {patten}'

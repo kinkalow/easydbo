@@ -2,6 +2,7 @@ import sys
 import PySimpleGUI as sg
 from .selection import SelectionWindow
 from datetime import datetime
+from easydbo.exception import EASYDBO_GOTO_LOOP
 
 
 class Util:
@@ -50,14 +51,17 @@ class WindowManger():
 
     def run(self):
         while True:
-            sys.stdout.flush()
-            window, event, values = sg.read_all_windows()
-            #print(window, event, values, window in self.windows)
-            if event == sg.WIN_CLOSED:
-                if window == self.main_window:
-                    self.close()
-                    break
-                else:
-                    self.windows[window].close()
-            elif window in self.windows:
-                self.windows[window].handle(event, values)
+            try:
+                sys.stdout.flush()
+                window, event, values = sg.read_all_windows()
+                #print(window, event, values, window in self.windows)
+                if event == sg.WIN_CLOSED:
+                    if window == self.main_window:
+                        self.close()
+                        break
+                    else:
+                        self.windows[window].close()
+                elif window in self.windows:
+                    self.windows[window].handle(event, values)
+            except EASYDBO_GOTO_LOOP as e:
+                print(e)

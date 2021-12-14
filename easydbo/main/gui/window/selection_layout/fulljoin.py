@@ -1,6 +1,9 @@
+import re
 import PySimpleGUI as sg
+from easydbo.output.log import Log
+from easydbo.exception import EASYDBO_GOTO_LOOP
 from .base import BaseLayout
-from .common import Attribution as attr
+from ..layout.common import Attribution as attr
 from ..query import QueryResultWindow
 
 class FullJoinLayout(BaseLayout):
@@ -132,7 +135,7 @@ class FullJoinLayout(BaseLayout):
         #values['_fulljoin__.human.center_name.checkbox'] = True
         #values['_fulljoin__.human.project_name.checkbox'] = True
         #values['_fulljoin__.human.human_cancer_type.checkbox'] = True
-        #values['_fulljoin__.cancer.cancer_receive_date.inputtext'] = '>2021-01-01'
+        #values['_fulljoin__.cancer.cancer_receive_date.inputtext'] = '[2021-01-01:2021-01-02]'
 
         # Create SELECT clause from checkboxes
         cbs = [k for k, v in values.items() if k.endswith('.checkbox') and v]  # k='prefkey.table.column.suffix'
@@ -186,16 +189,62 @@ def _create_select_clause(cb_cols):
     #tables = ', '.join(cb_cols) if cb_cols else '*'
     #return f'SELECT {tables}'
 
+def _parse_condition(column, cond_str):
+    delimiters = '[&|]'
+    pair_amp_bar = re.findall(delimiters, cond_str) + ['']
+    cond_strs = re.split(delimiters, cond_str)
+    new_cond = ''
+    for i, c in enumerate(cond_strs):
+        m = re.match(r'\(+', c)
+        tgt = c[len(m.group()):] if m else c
+
+        try:
+            if tgt.startswith('='):
+                new = f'{column} = "{c[1:]}"'
+            elif tgt.startswith('!'):
+                new = f'{column} <> "{c[1:]}"'
+            elif tgt.startswith('<='):
+                new = f'{column} <= "{c[2:]}"'
+            elif tgt.startswith('<'):
+                new = f'{column} < "{c[1:]}"'
+            elif tgt.startswith('>='):
+                new = f'{column} >= "{c[2:]}"'
+            elif tgt.startswith('>'):
+                new = f'{column} > "{c[1:]}"'
+            elif tgt.startswith('['):
+                mm = re.match(r'\[(.+):(.+)\]', tgt)
+                new = f'{column} >= "{mm.group(1)}" AND {column} <= "{mm.group(2)}"'
+            else:
+                raise
+            new = f'({new})'
+        except Exception:
+            msg = f'"{c}" is invalid in "{column}"'
+            raise EASYDBO_GOTO_LOOP(msg)
+
+        if m:
+            new = c[:len(m.group())] + new
+
+        if pair_amp_bar[i] == '&':
+            new_cond += f'{new} AND '
+        elif pair_amp_bar[i] == '|':
+            new_cond += f'{new} OR '
+        else:
+            new_cond += new
+
+    return new_cond
+
 def _create_where_clause(inp_tbls, inp_cols, inp_conds):
     if not inp_tbls:
         return ''
     conds = []
-    for t, c, cond1l in zip(inp_tbls, inp_cols, inp_conds):
-        for cond in cond1l.split(','):
-            if not cond:
-                continue
-            condition = f'({c}{cond})'
-            conds.append(condition)
+    for t, c, cond_str in zip(inp_tbls, inp_cols, inp_conds):
+        cond_str = _parse_condition(c, cond_str)
+        conds.append(cond_str)
+        #for cond in cond_str.split(','):
+        #    if not cond:
+        #        continue
+        #    condition = f'({c}{cond})'
+        #    conds.append(condition)
     return 'WHERE ' + ' AND '.join(conds)
 
 def _check_common_column(tnames, tableop):
@@ -205,7 +254,6 @@ def _check_common_column(tnames, tableop):
         s = set(columns[i])
         sets = sets.intersection(s)
         if len(sets) == 0:
-            from easydbo.output.log import Log
             Log.error(f'"{tnames[i-1]}" and "{tnames[i]}" have no common column')
 
 def _create_from_clause(tableop, cb_tbls, inp_tbls):

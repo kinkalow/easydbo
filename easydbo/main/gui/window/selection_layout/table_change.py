@@ -1,7 +1,7 @@
 import PySimpleGUI as sg
 from .base import BaseLayout
 from ..table import TableWindow
-from .common import Attribution as attr
+from ..layout.common import Attribution as attr
 
 class TableChangeLayout(BaseLayout):
     def __init__(self, selwin, util):

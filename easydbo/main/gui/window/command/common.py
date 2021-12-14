@@ -41,10 +41,12 @@ def execute_table_command(command, columns, data, delimiter, show_command):
 def make_grep_command(pattern):
     if not pattern:
         return
+    if pattern[0] == '-':
+        return f'grep {pattern[1:]}'
     pat_split = [p.strip() for p in pattern.split(',')]
     try:
-        pat0 = f'grep -ve {pat_split[0][1:]}' if pat_split[0][0] == '-' else f'grep -e {pat_split[0]}'
-        pat1 = ' '.join([f'| grep -ve {p[1:]}' if p[0] == '-' else f'| grep -e {p}' for p in pat_split[1:]])
+        pat0 = f'grep -ve {pat_split[0][1:]}' if pat_split[0][0] == '!' else f'grep -e {pat_split[0]}'
+        pat1 = ' '.join([f'| grep -ve {p[1:]}' if p[0] == '!' else f'| grep -e {p}' for p in pat_split[1:]])
         pat = f'{pat0} {pat1}'.strip()
     except Exception:
         print('[Error] Something wrong with GrepRun')

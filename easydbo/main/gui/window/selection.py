@@ -1,8 +1,8 @@
 import PySimpleGUI as sg
 from .base import BaseWindow
-from .layout.table_change import TableChangeLayout
-from .layout.alias import AliasLayout
-from .layout.fulljoin import FullJoinLayout
+from .selection_layout.table_change import TableChangeLayout
+from .selection_layout.alias import AliasLayout
+from .selection_layout.fulljoin import FullJoinLayout
 
 class SelectionWindow(BaseWindow):
     def __init__(self, util):
@@ -12,9 +12,9 @@ class SelectionWindow(BaseWindow):
         tblchg = TableChangeLayout(self, util)
         fulljoin = FullJoinLayout(self, util)
         alias = AliasLayout(self, util)
-        self.prefkey_clsobj = {tblchg.prefkey: tblchg,
-                               fulljoin.prefkey: fulljoin,
-                               alias.prefkey: alias}
+        self.prefkey_clsobj = {tblchg.get_privatekey(): tblchg,
+                               fulljoin.get_privatekey(): fulljoin,
+                               alias.get_privatekey(): alias}
         layout = [
             tblchg.get_layout(),
             [sg.TabGroup([[
