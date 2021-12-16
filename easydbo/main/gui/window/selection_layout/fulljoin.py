@@ -23,9 +23,9 @@ class FullJoinLayout(BaseLayout):
         self.key_checkall = f'{prefkey}checkall'
         self.key_checkclear = f'{prefkey}checkclear'
         self.key_inputtextclear = f'{prefkey}inputtextclear'
-        self.key_create = f'{prefkey}create'
         self.key_select = f'{prefkey}select'
         self.key_where = f'{prefkey}where'
+        self.key_create = f'{prefkey}create'
         self.key_query = f'{prefkey}query'
 
         # Full Outer Join
@@ -42,18 +42,6 @@ class FullJoinLayout(BaseLayout):
                 sg.InputText('', key=self.key_cols_conds[i][j], **attr.base_inputtext, size=(20, 1))
                 for j, c in enumerate(util.fullcolumns[i])
             ])
-        #
-        #tnames_columns.append([
-        #    sg.Frame('', [[
-        #        sg.Radio('full join', 'table_join', default=True, font=_C.font13),
-        #        sg.Radio('inner join', 'table_join', font=_C.font13),
-        #    ]]),
-        #    sg.Frame('', [[
-        #        sg.Radio('AND', 'column_join', default=True, font=_C.font13),
-        #        sg.Radio('OR', 'column_join', font=_C.font13),
-        #    ]]),
-        #])
-        #
         join_frame = sg.Frame(
             '', tnames_columns,
             key=None, border_width=5,
@@ -132,11 +120,6 @@ class FullJoinLayout(BaseLayout):
                 self.window[k].Update(value='')
 
     def show(self, values, only_return_query=False, sql_select='', sql_where=''):
-        #values['_fulljoin__.human.center_name.checkbox'] = True
-        #values['_fulljoin__.human.project_name.checkbox'] = True
-        #values['_fulljoin__.human.human_cancer_type.checkbox'] = True
-        #values['_fulljoin__.cancer.cancer_receive_date.inputtext'] = '[2021-01-01:2021-01-02]'
-
         # Create SELECT clause from checkboxes
         cbs = [k for k, v in values.items() if k.endswith('.checkbox') and v]  # k='prefkey.table.column.suffix'
         cb_tbls = [c.split('.')[1] for c in cbs]
@@ -166,7 +149,10 @@ class FullJoinLayout(BaseLayout):
         # Query
         sql = f'{sql_select} {sql_from} {sql_where}'.rstrip() + ';'
         from easydbo.main.select.sql import execute_query
-        query, header, data = execute_query(self.dbop, sql)
+        try:
+            query, header, data = execute_query(self.dbop, sql)
+        except Exception as e:
+            EASYDBO_GOTO_LOOP(e)
 
         # Print data on new window
         location = self.selwin.get_location(dy=30)
@@ -175,63 +161,63 @@ class FullJoinLayout(BaseLayout):
 
     def create_clause(self, values):
         sql_select, sql_where = self.show(values, only_return_query=True)
+        sql_select = re.sub('^SELECT', '', sql_select).strip()
+        sql_where = re.sub('^WHERE', '', sql_where).strip()
         self.window[self.key_select].Update(value=sql_select)
         self.window[self.key_where].Update(value=sql_where)
 
     def query(self, values):
-        sql_select = values[self.key_select]
-        sql_where = values[self.key_where]
+        sql_select = values[self.key_select].strip()
+        sql_where = values[self.key_where].strip()
+        sql_select = f'SELECT {sql_select}' if sql_select else ''
+        sql_where = f'WHERE {sql_where}' if sql_where else ''
         if sql_select:
             self.show(values, sql_select=sql_select, sql_where=sql_where)
 
 def _create_select_clause(cb_cols):
     return 'SELECT ' + ', '.join(cb_cols)
-    #tables = ', '.join(cb_cols) if cb_cols else '*'
-    #return f'SELECT {tables}'
 
-def _parse_condition(column, cond_str):
-    delimiters = '[&|]'
-    pair_amp_bar = re.findall(delimiters, cond_str) + ['']
-    cond_strs = re.split(delimiters, cond_str)
-    new_cond = ''
-    for i, c in enumerate(cond_strs):
-        m = re.match(r'\(+', c)
-        tgt = c[len(m.group()):] if m else c
-
-        try:
+def _parse_condition(column, condition):
+    try:
+        cond_fmt = re.sub(r'\*+', '{}', re.sub('[^&|]', '*', condition))  # '1&2|3' ---> '{}|{}|{}'
+        conds = re.split('[&|]', condition)
+        news = []
+        for i, c in enumerate(conds):
+            c_fmt = re.sub(r'\*+', '{}', re.sub('[^()]', '*', c))  # '(=1)' ---> '({})'
+            tgt = c.replace('(', '').replace(')', '')
             if tgt.startswith('='):
-                new = f'{column} = "{c[1:]}"'
+                new = f'{column} = "{tgt[1:]}"'
             elif tgt.startswith('!'):
-                new = f'{column} <> "{c[1:]}"'
+                new = f'{column} <> "{tgt[1:]}"'
             elif tgt.startswith('<='):
-                new = f'{column} <= "{c[2:]}"'
+                new = f'{column} <= "{tgt[2:]}"'
             elif tgt.startswith('<'):
-                new = f'{column} < "{c[1:]}"'
+                new = f'{column} < "{tgt[1:]}"'
             elif tgt.startswith('>='):
-                new = f'{column} >= "{c[2:]}"'
+                new = f'{column} >= "{tgt[2:]}"'
             elif tgt.startswith('>'):
-                new = f'{column} > "{c[1:]}"'
-            elif tgt.startswith('['):
-                mm = re.match(r'\[(.+):(.+)\]', tgt)
-                new = f'{column} >= "{mm.group(1)}" AND {column} <= "{mm.group(2)}"'
+                new = f'{column} > "{tgt[1:]}"'
+            elif tgt.startswith('[') or tgt.startswith('{'):
+                pairs = {
+                    r'\[([^\[\{]+):([^\]\}]+)\]$': ['>=', '<='],  # '[1:3]' ---> 'column >= 1 AND column <= 3'
+                    r'\[([^\[\{]+):([^\]\}]+)\}$': ['>=', '<'],   # '[1:3}' ---> 'column >= 1 AND column <  3'
+                    r'\{([^\[\{]+):([^\]\}]+)\]$': ['>', '<='],   # '{1:3]' ---> 'column >  1 AND column <= 3'
+                    r'\{([^\[\{]+):([^\]\}]+)\}$': ['>', '<'],    # '{1:3}' ---> 'column >  1 AND column <  3'
+                }
+                for p, (l, r) in pairs.items():
+                    m = re.match(p, tgt)
+                    if m:
+                        new = f'{column} {l} "{m.group(1)}" AND {column} {r} "{m.group(2)}"'
+                        break
+                else:
+                    raise
             else:
                 raise
-            new = f'({new})'
-        except Exception:
-            msg = f'"{c}" is invalid in "{column}"'
-            raise EASYDBO_GOTO_LOOP(msg)
-
-        if m:
-            new = c[:len(m.group())] + new
-
-        if pair_amp_bar[i] == '&':
-            new_cond += f'{new} AND '
-        elif pair_amp_bar[i] == '|':
-            new_cond += f'{new} OR '
-        else:
-            new_cond += new
-
-    return new_cond
+            news.append(c_fmt.format(f'({new})'))
+        return cond_fmt.format(*news)
+    except Exception:
+        msg = f'"{condition}" is invalid in "{column}"'
+        raise EASYDBO_GOTO_LOOP(msg)
 
 def _create_where_clause(inp_tbls, inp_cols, inp_conds):
     if not inp_tbls:
@@ -240,11 +226,6 @@ def _create_where_clause(inp_tbls, inp_cols, inp_conds):
     for t, c, cond_str in zip(inp_tbls, inp_cols, inp_conds):
         cond_str = _parse_condition(c, cond_str)
         conds.append(cond_str)
-        #for cond in cond_str.split(','):
-        #    if not cond:
-        #        continue
-        #    condition = f'({c}{cond})'
-        #    conds.append(condition)
     return 'WHERE ' + ' AND '.join(conds)
 
 def _check_common_column(tnames, tableop):
@@ -257,9 +238,6 @@ def _check_common_column(tnames, tableop):
             Log.error(f'"{tnames[i-1]}" and "{tnames[i]}" have no common column')
 
 def _create_from_clause(tableop, cb_tbls, inp_tbls):
-    #if not cb_tbls and not inp_tbls:
-    #    tnames = tableop.get_tnames()
-    #else:
     tnames = set([t for t in cb_tbls + inp_tbls])
     tnames = [t for t in tableop.get_tnames() if t in tnames]  # Sort
 
