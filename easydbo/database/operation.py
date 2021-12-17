@@ -59,10 +59,10 @@ SELECT Min(_EASYDBO_TABLE.{column})+1 AS min_num FROM (SELECT {column} FROM {tab
         columns = ','.join(columns)
         where = f'WHERE {where}' if where else ''
         query = f'SELECT {columns} FROM {table} {where};'
-        return self._select(query, ret_flat)
+        return self._select(query, ret_flat, **kwargs)
 
     def select_by_cmd(self, query, ret_flat=False, **kwargs):
-        return self._select(query, ret_flat)
+        return self._select(query, ret_flat, **kwargs)
 
     # <---
     # Insert --->

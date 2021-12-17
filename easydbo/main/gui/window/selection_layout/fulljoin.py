@@ -24,6 +24,7 @@ class FullJoinLayout(BaseLayout):
         self.key_checkclear = f'{prefkey}checkclear'
         self.key_inputtextclear = f'{prefkey}inputtextclear'
         self.key_select = f'{prefkey}select'
+        self.key_from = f'{prefkey}from'
         self.key_where = f'{prefkey}where'
         self.key_create = f'{prefkey}create'
         self.key_query = f'{prefkey}query'
@@ -75,6 +76,10 @@ class FullJoinLayout(BaseLayout):
                 sg.InputText('', **attr.base_inputtext, key=self.key_select, expand_x=True),
             ],
             [
+                sg.Text('FROM', **attr.base_text, size=(7, 1)),
+                sg.InputText('', **attr.base_inputtext, key=self.key_from, expand_x=True),
+            ],
+            [
                 sg.Text('WHERE', **attr.base_text, size=(7, 1)),
                 sg.InputText('', key=self.key_where, **attr.base_inputtext, expand_x=True),
             ],
@@ -97,7 +102,7 @@ class FullJoinLayout(BaseLayout):
     def handle(self, event, values):
         values_rmv = self.filter_values_by_prefix_key(self.prefkey, values)
         if event == self.key_show:
-            self.show(values_rmv)
+            self.show(*self.create_query(values_rmv))
         elif event == self.key_checkall:
             self.check(values_rmv, True)
         elif event == self.key_checkclear:
@@ -119,17 +124,16 @@ class FullJoinLayout(BaseLayout):
             if k.endswith('.inputtext'):
                 self.window[k].Update(value='')
 
-    def show(self, values, only_return_query=False, sql_select='', sql_where=''):
+    def create_query(self, values):
         # Create SELECT clause from checkboxes
         cbs = [k for k, v in values.items() if k.endswith('.checkbox') and v]  # k='prefkey.table.column.suffix'
         cb_tbls = [c.split('.')[1] for c in cbs]
         cb_cols = [c.split('.')[2] for c in cbs]
-        if not sql_select:
-            sql_select = _create_select_clause(cb_cols)
+        sql_select = _create_select_clause(cb_cols)
 
         # Do nothing if none of checkboxes are selected
         if not cbs:
-            return '', ''
+            return EASYDBO_GOTO_LOOP('[Error] Checkboxes are not selected.')
 
         # Create WHERE clause from input texts
         inputs = [(k, v) for k, v in values.items()
@@ -137,22 +141,22 @@ class FullJoinLayout(BaseLayout):
         inp_tbls = [i[0].split('.')[1] for i in inputs]
         inp_cols = [i[0].split('.')[2] for i in inputs]
         inp_conds = [i[1] for i in inputs]
-        if not sql_where:
-            sql_where = _create_where_clause(inp_tbls, inp_cols, inp_conds)
-
-        if only_return_query:
-            return sql_select, sql_where
+        sql_where = _create_where_clause(inp_tbls, inp_cols, inp_conds)
 
         # Create FROM clause from checkboxes and input texts
         sql_from = _create_from_clause(self.tableop, cb_tbls, inp_tbls)
 
+        # Result
+        return sql_select, sql_from, sql_where
+
+    def show(self, sql_select, sql_from, sql_where):
         # Query
-        sql = f'{sql_select} {sql_from} {sql_where}'.rstrip() + ';'
-        from easydbo.main.select.sql import execute_query
-        try:
-            query, header, data = execute_query(self.dbop, sql)
-        except Exception as e:
-            EASYDBO_GOTO_LOOP(e)
+        query = f'{sql_select} {sql_from} {sql_where}'.rstrip() + ';'
+        ret = self.dbop.execute(query, ignore_error=True)
+        if ret.is_error:
+            return
+        header = self.dbop.get_current_columns()
+        data = self.dbop.fetchall()
 
         # Print data on new window
         location = self.selwin.get_location(dy=30)
@@ -160,19 +164,24 @@ class FullJoinLayout(BaseLayout):
         self.util.winmgr.add_window(win)
 
     def create_clause(self, values):
-        sql_select, sql_where = self.show(values, only_return_query=True)
+        sql_select, sql_from, sql_where = self.create_query(values)
         sql_select = re.sub('^SELECT', '', sql_select).strip()
+        sql_from = re.sub('^FROM', '', sql_from).strip()
         sql_where = re.sub('^WHERE', '', sql_where).strip()
         self.window[self.key_select].Update(value=sql_select)
+        self.window[self.key_from].Update(value=sql_from)
         self.window[self.key_where].Update(value=sql_where)
 
     def query(self, values):
         sql_select = values[self.key_select].strip()
+        sql_from = values[self.key_from].strip()
         sql_where = values[self.key_where].strip()
         sql_select = f'SELECT {sql_select}' if sql_select else ''
+        sql_from = f'FROM {sql_from}' if sql_from else ''
         sql_where = f'WHERE {sql_where}' if sql_where else ''
+        #sql_where = f'WHERE {sql_where}' if sql_where and not sql_where.startswith('1 ') else sql_where[2:].lstrip()
         if sql_select:
-            self.show(values, sql_select=sql_select, sql_where=sql_where)
+            self.show(sql_select, sql_from, sql_where)
 
 def _create_select_clause(cb_cols):
     return 'SELECT ' + ', '.join(cb_cols)
