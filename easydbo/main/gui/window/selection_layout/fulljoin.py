@@ -1,7 +1,7 @@
 import re
 import PySimpleGUI as sg
 from easydbo.output.log import Log
-from easydbo.exception import EASYDBO_GOTO_LOOP
+from easydbo.exception import EASYDBO_GOTO_LOOP, EASYDBO_USER_ERROR
 from .base import BaseLayout
 from ..layout.common import Attribution as attr
 from ..query import QueryResultWindow
@@ -26,6 +26,7 @@ class FullJoinLayout(BaseLayout):
         self.key_select = f'{prefkey}select'
         self.key_from = f'{prefkey}from'
         self.key_where = f'{prefkey}where'
+        self.key_others = f'{prefkey}otheres'
         self.key_create = f'{prefkey}create'
         self.key_query = f'{prefkey}query'
 
@@ -84,6 +85,10 @@ class FullJoinLayout(BaseLayout):
                 sg.InputText('', key=self.key_where, **attr.base_inputtext, expand_x=True),
             ],
             [
+                sg.Text('', **attr.base_text, size=(7, 1)),
+                sg.InputText('', key=self.key_others, **attr.base_inputtext, expand_x=True),
+            ],
+            [
                 sg.Button('Create', **attr.base_button_with_color_safety, key=self.key_create),
                 sg.Button('Query', **attr.base_button_with_color_safety, key=self.key_query),
             ],
@@ -133,7 +138,7 @@ class FullJoinLayout(BaseLayout):
 
         # Do nothing if none of checkboxes are selected
         if not cbs:
-            return EASYDBO_GOTO_LOOP('[Error] Checkboxes are not selected.')
+            raise EASYDBO_GOTO_LOOP('Checkboxes are not selected.')
 
         # Create WHERE clause from input texts
         inputs = [(k, v) for k, v in values.items()
@@ -149,9 +154,9 @@ class FullJoinLayout(BaseLayout):
         # Result
         return sql_select, sql_from, sql_where
 
-    def show(self, sql_select, sql_from, sql_where):
+    def show(self, sql_select, sql_from, sql_where, sql_others=''):
         # Query
-        query = f'{sql_select} {sql_from} {sql_where}'.rstrip() + ';'
+        query = f'{sql_select} {sql_from} {sql_where} {sql_others}'.rstrip() + ';'
         ret = self.dbop.execute(query, ignore_error=True)
         if ret.is_error:
             return
@@ -176,12 +181,12 @@ class FullJoinLayout(BaseLayout):
         sql_select = values[self.key_select].strip()
         sql_from = values[self.key_from].strip()
         sql_where = values[self.key_where].strip()
+        sql_others = values[self.key_others].strip()
         sql_select = f'SELECT {sql_select}' if sql_select else ''
         sql_from = f'FROM {sql_from}' if sql_from else ''
         sql_where = f'WHERE {sql_where}' if sql_where else ''
-        #sql_where = f'WHERE {sql_where}' if sql_where and not sql_where.startswith('1 ') else sql_where[2:].lstrip()
         if sql_select:
-            self.show(sql_select, sql_from, sql_where)
+            self.show(sql_select, sql_from, sql_where, sql_others=sql_others)
 
 def _create_select_clause(cb_cols):
     return 'SELECT ' + ', '.join(cb_cols)
@@ -191,6 +196,7 @@ def _parse_condition(column, condition):
         cond_fmt = re.sub(r'\*+', '{}', re.sub('[^&|]', '*', condition))  # '1&2|3' ---> '{}|{}|{}'
         conds = re.split('[&|]', condition)
         news = []
+        add_err_msg = ''
         for i, c in enumerate(conds):
             c_fmt = re.sub(r'\*+', '{}', re.sub('[^()]', '*', c))  # '(=1)' ---> '({})'
             tgt = c.replace('(', '').replace(')', '')
@@ -219,13 +225,16 @@ def _parse_condition(column, condition):
                         new = f'{column} {l} "{m.group(1)}" AND {column} {r} "{m.group(2)}"'
                         break
                 else:
-                    raise
+                    add_err_msg = 'Format: "[:]", "[:}", "{:]", "{:}"'
+                    raise EASYDBO_USER_ERROR
             else:
-                raise
+                add_err_msg = 'Missing symbol: "=", "!", "<=", "<", ">=", ">", "[", "{"'
+                raise EASYDBO_USER_ERROR
             news.append(c_fmt.format(f'({new})'))
         return cond_fmt.format(*news)
-    except Exception:
-        msg = f'"{condition}" is invalid in "{column}"'
+    except EASYDBO_USER_ERROR:
+        msg = f'Invalid condition "{condition}" in "{column}"'
+        msg += f'\n{add_err_msg}' if add_err_msg else ''
         raise EASYDBO_GOTO_LOOP(msg)
 
 def _create_where_clause(inp_tbls, inp_cols, inp_conds):
