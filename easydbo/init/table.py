@@ -46,6 +46,12 @@ class TableOperator():
         else:
             return [t for t in self.tables]
 
+    #def get_types(self, tnames=[]):
+    #    if tnames:
+    #        return [t.types for tname in tnames for t in self.tables if t.name == tname]
+    #    else:
+    #        return [t.types for t in self.tables]
+
     def get_tnames(self):
         return [t.name for t in self.tables]
 

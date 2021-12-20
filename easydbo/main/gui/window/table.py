@@ -4,6 +4,7 @@ from .filter import FilterWindow
 from .base import BaseWindow
 from .layout.common import Attribution as attr
 from .command.common import save_table_data, execute_table_command, make_grep_command
+from easydbo.output.log import Log
 
 class TableWindow(BaseWindow):
     def __init__(self, tname, util, location):
@@ -14,6 +15,7 @@ class TableWindow(BaseWindow):
         #
         self.dbop = util.dbop
         self.columns = util.tableop.get_columns([tname], full=True)[0]
+        #self.types = util.tableop.get_types([tname])[0]
         self.sort_reverse = True
         self.rightclick_location = (-1, -1)
         #
@@ -192,6 +194,16 @@ class TableWindow(BaseWindow):
         self.util.winmgr.add_window(win)
         self.candidate_windows[idx] = win.get_window()
 
+    def _get_fields_by_pv(self, primary_value):
+        # FIXME: Codes should be rewritten to type conversions rather than query database
+        column_str = ", ".join(self.columns)
+        column_name = self.columns[self.pkidx]
+        query = f'SELECT {column_str} from {self.tname} WHERE {column_name} = {primary_value}'
+        ret = self.dbop.execute(query)
+        if ret.is_error:
+            Log.fatal_error(f'Bad querry: {query}')
+        return self.dbop.fetchall()[0]
+
     def insert(self, values):
         data = [str(self.window[k].get()) for k in self.key_inputs]
         if self.pkauto and not data[self.pkidx]:
@@ -202,7 +214,8 @@ class TableWindow(BaseWindow):
         if ret.is_error:
             return
         self.dbop.commit()
-        self.table_data.insert(0, data)
+        data_conv = self._get_fields_by_pv(data[self.pkidx])
+        self.table_data.insert(0, data_conv)
         self.table.update(self.table_data)
         print(f'[Insert] {data}')
 
@@ -236,7 +249,8 @@ class TableWindow(BaseWindow):
         self.util.winmgr.add_window(winobj)
 
     def notify_update(self, rows, updates):
-        for r, u in zip(rows, updates):
+        updates_conv = [self._get_fields_by_pv(u[self.pkidx]) for u in updates]
+        for r, u in zip(rows, updates_conv):
             self.table_data[r] = u
         self.table.update(self.table_data)
         [print(f'[Update] {update}') for update in updates]
@@ -356,10 +370,11 @@ class TableUpdateWindow(BaseWindow):
         table = self.util.tableop.get_tables(targets=[self.tname])[0]
         pk, pkidx = table.pk, table.pkidx
 
+        rows = []
         updates = []
-        for i, keys in enumerate(self.key_inputs):
+        for i, (row, keys) in enumerate(zip(self.rows, self.key_inputs)):
             origin = self.selected_data[i]
-            update = [self.window[k].get() for k in keys]
+            update = [self.window[k].get() for k in keys]  # QUESTION: window[k].get() returns string?
             diff = {c: u for i, (c, o, u) in enumerate(zip(self.columns, origin, update)) if o != u}
             if not diff:
                 continue
@@ -367,8 +382,9 @@ class TableUpdateWindow(BaseWindow):
             ret = self.dbop.update(self.tname, diff, pk, pkval, ignore_error=True)
             if ret.is_error:
                 return self.dbop.rollback()
+            rows.append(row)
             updates.append(update)
 
         self.dbop.commit()
-        self.parent.notify_update(self.rows, updates)
+        self.parent.notify_update(rows, updates)
         self.close()
