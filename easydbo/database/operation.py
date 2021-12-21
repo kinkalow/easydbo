@@ -67,15 +67,19 @@ SELECT Min(_EASYDBO_TABLE.{column})+1 AS min_num FROM (SELECT {column} FROM {tab
     # <---
     # Insert --->
 
-    def insert(self, table, columns, data, **kwargs):
+    def insert(self, table, columns, data, do_convert=False, **kwargs):
         '''
-        table  : str    : table name
-        columns: 1D list: column names
-        data   : 2D list: data to input
+        table  : str                    : Table name
+        columns: List(str)              : Column names
+        data   : List(List(str or None)): Data to input
         '''
         col_str = ','.join(columns)
         query = f'INSERT INTO {table}({col_str}) VALUES ({("%s, "*len(data[0]))[:-2]});'
-        return self.executemany(query, data, **kwargs)
+        if do_convert:
+            data_conv = [None if not d0 else d0 if isinstance(d0, str) else str(d0) for d1 in data for d0 in d1]
+        else:
+            data_conv = data
+        return self.executemany(query, data_conv, **kwargs)
 
     # <---
     # Delete --->
@@ -99,12 +103,12 @@ SELECT Min(_EASYDBO_TABLE.{column})+1 AS min_num FROM (SELECT {column} FROM {tab
 
     def update(self, table, cols_vals, pn, pv, **kwargs):
         '''
-        table    : str : table name
-        cols_vals: dict: pair of columns and values
-        pn       : str : primary name
-        pv       : str : primary value
+        table    : str                   : table name
+        cols_vals: Dict{str: str or None}: pair of columns and values
+        pn       : str                   : primary name
+        pv       : str                   : primary value
         '''
-        set_ = ', '.join([f'{c}="{v}"' for c, v in cols_vals.items()])
+        set_ = ', '.join([f'{c}="{v}"' if v else f'{c}=NULL' for c, v in cols_vals.items()])
         where = f'{pn}={pv}'
         query = f'UPDATE {table} SET {set_} WHERE {where};'
         return self.execute(query, **kwargs)

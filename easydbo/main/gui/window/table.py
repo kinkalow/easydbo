@@ -194,7 +194,7 @@ class TableWindow(BaseWindow):
         self.util.winmgr.add_window(win)
         self.candidate_windows[idx] = win.get_window()
 
-    def _get_fields_by_pv(self, primary_value):
+    def get_fields(self, primary_value):
         # FIXME: Codes should be rewritten to type conversions rather than query database
         column_str = ", ".join(self.columns)
         column_name = self.columns[self.pkidx]
@@ -204,17 +204,23 @@ class TableWindow(BaseWindow):
             Log.fatal_error(f'Bad querry: {query}')
         return self.dbop.fetchall()[0]
 
-    def insert(self, values):
-        data = [str(self.window[k].get()) for k in self.key_inputs]
+    def to_mysql(self, data):
+        """
+        data: List(any)
+        """
         if self.pkauto and not data[self.pkidx]:
             data[self.pkidx] = self.dbop.get_autoincrement(self.tname, self.pk)
-        if all([True if d else False for d in data]) is False:
-            return
+        data = [None if not d else d if isinstance(d, str) else str(d) for d in data]
+        return data
+
+    def insert(self, values):
+        data = [self.window[k].get() for k in self.key_inputs]
+        data = self.to_mysql(data)
         ret = self.dbop.insert(self.tname, self.columns, [data], ignore_error=True)
         if ret.is_error:
             return
         self.dbop.commit()
-        data_conv = self._get_fields_by_pv(data[self.pkidx])
+        data_conv = self.get_fields(data[self.pkidx])
         self.table_data.insert(0, data_conv)
         self.table.update(self.table_data)
         print(f'[Insert] {data}')
@@ -249,7 +255,11 @@ class TableWindow(BaseWindow):
         self.util.winmgr.add_window(winobj)
 
     def notify_update(self, rows, updates):
-        updates_conv = [self._get_fields_by_pv(u[self.pkidx]) for u in updates]
+        """
+        rows   : List(int)      : Row number of self.table to update
+        updates: List(List(str)): Row values of self.table to update
+        """
+        updates_conv = [self.get_fields(u[self.pkidx]) for u in updates]
         for r, u in zip(rows, updates_conv):
             self.table_data[r] = u
         self.table.update(self.table_data)
@@ -374,7 +384,9 @@ class TableUpdateWindow(BaseWindow):
         updates = []
         for i, (row, keys) in enumerate(zip(self.rows, self.key_inputs)):
             origin = self.selected_data[i]
-            update = [self.window[k].get() for k in keys]  # QUESTION: window[k].get() returns string?
+            origin = self.parent.to_mysql(origin)
+            update = [self.window[k].get() for k in keys]  # window[k].get() returns str because it calls tkinter.StringVar
+            update = self.parent.to_mysql(update)
             diff = {c: u for i, (c, o, u) in enumerate(zip(self.columns, origin, update)) if o != u}
             if not diff:
                 continue

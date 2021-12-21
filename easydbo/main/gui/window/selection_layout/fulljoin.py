@@ -197,10 +197,38 @@ def _parse_condition(column, condition):
         conds = re.split('[&|]', condition)
         news = []
         add_err_msg = ''
+        range_eq = {
+            r'\[([^\[\{]+):([^\]\}]+)\]$': ['>=', '<='],  # '=[1:3]' ---> 'column >= 1 AND column <= 3'
+            r'\[([^\[\{]+):([^\]\}]+)\}$': ['>=', '<'],   # '=[1:3}' ---> 'column >= 1 AND column <  3'
+            r'\{([^\[\{]+):([^\]\}]+)\]$': ['>', '<='],   # '={1:3]' ---> 'column >  1 AND column <= 3'
+            r'\{([^\[\{]+):([^\]\}]+)\}$': ['>', '<'],    # '={1:3}' ---> 'column >  1 AND column <  3'
+        }
         for i, c in enumerate(conds):
             c_fmt = re.sub(r'\*+', '{}', re.sub('[^()]', '*', c))  # '(=1)' ---> '({})'
             tgt = c.replace('(', '').replace(')', '')
-            if tgt.startswith('='):
+            if tgt.startswith('=[') or tgt.startswith('={') \
+            or tgt.startswith('![') or tgt.startswith('!{') \
+            or tgt.startswith('[') or tgt.startswith('{'):
+                is_eq = False if tgt.startswith('![') or tgt.startswith('!{') else True
+                tgt_trim = tgt[1:] \
+                    if tgt.startswith('=[') or tgt.startswith('={') \
+                    or tgt.startswith('![') or tgt.startswith('!{') \
+                    else tgt
+                for p, (left, right) in range_eq.items():
+                    m = re.match(p, tgt_trim)
+                    if m:
+                        if is_eq:
+                            op = 'AND'
+                        else:
+                            left = '<' if left == '>=' else '<='
+                            right = '>' if right == '<=' else '>='
+                            op = 'OR'
+                        new = f'{column} {left} "{m.group(1)}" {op} {column} {right} "{m.group(2)}"'
+                        break
+                else:
+                    add_err_msg = 'Format: "[:]", "[:}", "{:]", "{:}"'
+                    raise EASYDBO_USER_ERROR
+            elif tgt.startswith('='):
                 new = f'{column} = "{tgt[1:]}"'
             elif tgt.startswith('!'):
                 new = f'{column} <> "{tgt[1:]}"'
@@ -212,24 +240,10 @@ def _parse_condition(column, condition):
                 new = f'{column} >= "{tgt[2:]}"'
             elif tgt.startswith('>'):
                 new = f'{column} > "{tgt[1:]}"'
-            elif tgt.startswith('[') or tgt.startswith('{'):
-                pairs = {
-                    r'\[([^\[\{]+):([^\]\}]+)\]$': ['>=', '<='],  # '[1:3]' ---> 'column >= 1 AND column <= 3'
-                    r'\[([^\[\{]+):([^\]\}]+)\}$': ['>=', '<'],   # '[1:3}' ---> 'column >= 1 AND column <  3'
-                    r'\{([^\[\{]+):([^\]\}]+)\]$': ['>', '<='],   # '{1:3]' ---> 'column >  1 AND column <= 3'
-                    r'\{([^\[\{]+):([^\]\}]+)\}$': ['>', '<'],    # '{1:3}' ---> 'column >  1 AND column <  3'
-                }
-                for p, (l, r) in pairs.items():
-                    m = re.match(p, tgt)
-                    if m:
-                        new = f'{column} {l} "{m.group(1)}" AND {column} {r} "{m.group(2)}"'
-                        break
-                else:
-                    add_err_msg = 'Format: "[:]", "[:}", "{:]", "{:}"'
-                    raise EASYDBO_USER_ERROR
             else:
-                add_err_msg = 'Missing symbol: "=", "!", "<=", "<", ">=", ">", "[", "{"'
-                raise EASYDBO_USER_ERROR
+                new = f'{column} = "{tgt}"'
+                #add_err_msg = 'Missing symbol: "=", "!", "<=", "<", ">=", ">", "[", "{"'
+                #raise EASYDBO_USER_ERROR
             news.append(c_fmt.format(f'({new})'))
         return cond_fmt.format(*news)
     except EASYDBO_USER_ERROR:
