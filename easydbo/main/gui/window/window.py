@@ -1,6 +1,6 @@
 import sys
 import PySimpleGUI as sg
-from .selection import SelectionWindow
+from .main import MainWindow
 from datetime import datetime
 from easydbo.exception import EASYDBO_GOTO_LOOP
 
@@ -36,12 +36,12 @@ class WindowManger():
 
     def __init__(self, configs, aliases, tableop, dbop):
         util = Util(self, configs, aliases, tableop, dbop)
-        select = SelectionWindow(util)
-        self.windows = {select.get_window(): select}
-        self.main_window = select.get_window()
+        select = MainWindow(util)
+        self.windows = {select.window: select}
+        self.main_window = select.window
 
     def add_window(self, winobj):
-        self.windows.update({winobj.get_window(): winobj})
+        self.windows.update({winobj.window: winobj})
 
     def remove_window(self, window):
         self.windows.pop(window)

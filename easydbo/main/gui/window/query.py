@@ -1,7 +1,6 @@
-#import os
 import PySimpleGUI as sg
-from .base import BaseWindow
-from .layout.common import Attribution as attr
+from .base import BaseWindow, SubWindowManager
+from .common.layout import Attribution as attr
 
 class QueryResultWindow(BaseWindow):
     def __init__(self, util, query, header, data, location, use_query_btn=True):
@@ -52,7 +51,7 @@ class QueryResultWindow(BaseWindow):
             ],
         ]
 
-        self.window = sg.Window(
+        self._window = sg.Window(
             'EasyDBO QueryResult',
             self.layout,
             location=location,
@@ -60,6 +59,14 @@ class QueryResultWindow(BaseWindow):
             resizable=True,
             finalize=True,
         )
+        # Subwindows
+        subwin_names = [self.key_querybtn]
+        self.subwinmgr = SubWindowManager(util.winmgr, self.window, subwin_names)
+
+        #frame_id = self.window[self.key_table].Widget.frame_id
+        #canvas = self.window[self.key_table].Widget.canvas
+        #canvas.bind('<Configure>', lambda event, canvas=canvas, frame_id=frame_id:
+        #            canvas.itemconfig(frame_id, width=canvas.winfo_width()))
 
     def get_table_data(self):
         header = self.window[self.key_table].ColumnHeadings
@@ -68,18 +75,17 @@ class QueryResultWindow(BaseWindow):
 
     def handle(self, event, values):
         if event == self.key_querybtn:
-            self.add_alias()
+            self.add_alias(event)
         elif event == self.key_grepbtn:
             self.grep()
         elif event == self.key_save:
             path = values[self.key_save]
             self.save_as_csv(path)
 
-    def add_alias(self):
+    def add_alias(self, key):
         from .save_as_alias import SaveAsAliasWindow
-        location = self.get_location(dy=30)
-        win = SaveAsAliasWindow(self.util, self.query, location)
-        self.winmgr.add_window(win)
+        location = self.subwinmgr.get_location(widgetkey=key, widgety=True, dy=60)
+        self.subwinmgr.create_single_window(key, SaveAsAliasWindow, self.util, self.query, location)
 
     def grep(self):
         grep_pat = self.window[self.key_grepinputtxt].get()
@@ -115,6 +121,6 @@ class QueryResultWindow(BaseWindow):
         self.winmgr.add_window(win)
 
     def save_as_csv(self, path):
-        from .command.common import save_table_data
+        from .common.command import save_table_data
         table = self.window[self.key_table]
         save_table_data(path, table.ColumnHeadings, table.get())

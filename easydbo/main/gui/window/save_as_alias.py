@@ -1,15 +1,6 @@
 import PySimpleGUI as sg
 from .base import BaseWindow
-from .layout.common import Attribution as attr
-
-#class SaveAsAliasLayout(BaseLayout):
-#    def __init__(self):
-#        self.layout = [
-#            [
-#                sg.Alias(f'Query', key=self.key_query_btn),
-#                sg.InputText(cmd, key=self.key_query_txt)
-#            ],
-#        ]
+from .common.layout import Attribution as attr
 
 class SaveAsAliasWindow(BaseWindow):
     def __init__(self, util, query, location):
@@ -36,7 +27,7 @@ class SaveAsAliasWindow(BaseWindow):
         ]
 
         # Window
-        self.window = sg.Window(
+        self._window = sg.Window(
             'EasyDBO SaveAsAlias',
             self.layout,
             size=(1300, 500),
@@ -46,4 +37,4 @@ class SaveAsAliasWindow(BaseWindow):
         )
 
     #def handle(self, event, values):
-    #    if event == self.key:
+    #    pass

@@ -1,24 +1,85 @@
 import re
+import functools
 import PySimpleGUI as sg
-from easydbo.output.log import Log
 from easydbo.exception import EASYDBO_GOTO_LOOP, EASYDBO_USER_ERROR
-from .base import BaseLayout
-from ..layout.common import Attribution as attr
-from ..query import QueryResultWindow
+from easydbo.output.log import Log
+from .base import BaseWindow, SubWindowManager
+from .alias import AliasWindow
+from .table import TableWindow
+from .common.layout import Attribution as attr
+from .common.sql import create_sql_result
 
-class FullJoinLayout(BaseLayout):
-    def __init__(self, selwin, util):
-        self.selwin = selwin
+
+class MainWindow(BaseWindow):
+    def __init__(self, util):
+        super().__init__(util.winmgr)
+        self.util = util
+        tnames = util.tnames
+
+        prefkey = '_main__.'
+        self.key_tables = [f'{prefkey}{t}' for t in tnames]
+        self.key_alias = f'{prefkey}alias'
+        self.key_excel = f'{prefkey}excel'
+
+        # Layout
+        self.fulljoin = FullJoinLayout(prefkey, util)
+        layout = [
+            [sg.Button(f' {tn} ', **attr.base_button_with_color_warning, key=self.key_tables[i]) for i, tn in enumerate(util.tnames)],
+            [sg.Button(' Alias ', **attr.base_button_with_color_safety, key=self.key_alias),
+             sg.Button(' Excel ', **attr.base_button_with_color_warning, key=self.key_excel)],
+            [sg.Text('')],
+            [self.fulljoin.layout],
+        ]
+
+        # Windows
+        self._window = sg.Window(
+            'EasyDBO Main',
+            layout,
+            location=(5000, 200),
+            size=(1300, 800),
+            resizable=True,
+            finalize=True,
+        )
+        # Subwindows
+        subwin_names = self.key_tables + [self.key_alias]
+        self.subwinmgr = SubWindowManager(util.winmgr, self.window, subwin_names)
+        # Add window objects to fulljoin layout
+        self.fulljoin.set_window(self.window, self.subwinmgr)
+
+    def handle(self, event, values):
+        if event in self.key_tables:
+            self.open_table(event)
+        elif event in self.key_alias:
+            self.alias(event)
+        elif event in self.key_excel:
+            pass
+        else:
+            self.fulljoin.handle(event, values)
+
+    def open_table(self, key):
+        tname = key.split('.')[-1]
+        location = self.subwinmgr.get_location(dy=80)
+        self.subwinmgr.create_single_window(key, TableWindow, tname, self.util, location)
+
+    def alias(self, key, location=None, size=None):
+        # NOTE: This method is also invoked in AliasWindow class
+        #     : location and size arugements are defined in AliasWindow class
+        if not location:
+            location = self.subwinmgr.get_location(widgetkey=self.key_alias, widgety=True, dy=60)
+        alias_method = functools.partial(self.alias, key)
+        self.subwinmgr.create_single_window(key, AliasWindow, self.util, location, alias_method, size=size)
+
+
+class FullJoinLayout():
+    def __init__(self, prefkey, util):
         self.util = util
 
         self.tableop = util.tableop
         self.dbop = util.dbop
 
-        self.prefkey = prefkey = '_fulljoin__.'
-        self.key_cols_cbs = [[f'{prefkey}{t}.{c}.checkbox' for c in util.fullcolumns[i]]
-                             for i, t in enumerate(util.tnames)]
-        self.key_cols_conds = [[f'{prefkey}{t}.{c}.inputtext' for c in util.fullcolumns[i]]
-                               for i, t in enumerate(util.tnames)]
+        self.prefkey = prefkey
+        self.key_cols_cbs = [[f'{prefkey}{t}.{c}.checkbox' for c in util.fullcolumns[i]] for i, t in enumerate(util.tnames)]
+        self.key_cols_conds = [[f'{prefkey}{t}.{c}.inputtext' for c in util.fullcolumns[i]] for i, t in enumerate(util.tnames)]
         self.key_show = f'{prefkey}show'
         self.key_checkall = f'{prefkey}checkall'
         self.key_checkclear = f'{prefkey}checkclear'
@@ -101,33 +162,25 @@ class FullJoinLayout(BaseLayout):
     #    [window[k].bind('<Leave>', f'{k}.focusout-') for k1 in self.key_cols_cbs for k in k1]
     #    [window[k].bind('<Leave>', f'{k}.focusout-') for k1 in self.key_cols_conds for k in k1]
 
-    def get_layout(self):
-        return self.layout
+    def set_window(self, window, subwinmgr):
+        self.window = window
+        self.subwinmgr = subwinmgr
 
     def handle(self, event, values):
-        values_rmv = self.filter_values_by_prefix_key(self.prefkey, values)
+        values_rmv = {k: v for k, v in values.items()
+                      if isinstance(k, str) and k.startswith(self.prefkey)}
         if event == self.key_show:
             self.show(*self.create_query(values_rmv))
         elif event == self.key_checkall:
-            self.check(values_rmv, True)
+            self.check_checkboxes(values_rmv, True)
         elif event == self.key_checkclear:
-            self.check(values_rmv, False)
+            self.check_checkboxes(values_rmv, False)
         elif event == self.key_inputtextclear:
             self.input_text_clear(values_rmv)
         elif event == self.key_create:
             self.create_clause(values_rmv)
         elif event == self.key_query:
             self.query(values_rmv)
-
-    def check(self, values, true_or_false):
-        for k in values.keys():
-            if k.endswith('.checkbox'):
-                self.window[k].Update(value=true_or_false)
-
-    def input_text_clear(self, values):
-        for k in values.keys():
-            if k.endswith('.inputtext'):
-                self.window[k].Update(value='')
 
     def create_query(self, values):
         # Create SELECT clause from checkboxes
@@ -157,16 +210,28 @@ class FullJoinLayout(BaseLayout):
     def show(self, sql_select, sql_from, sql_where, sql_others=''):
         # Query
         query = f'{sql_select} {sql_from} {sql_where} {sql_others}'.rstrip() + ';'
-        ret = self.dbop.execute(query, ignore_error=True)
-        if ret.is_error:
-            return
-        header = self.dbop.get_current_columns()
-        data = self.dbop.fetchall()
+        location = self.subwinmgr.get_location(dy=30)
+        create_sql_result(query, self.util, self.subwinmgr, location)
+        #return
+        #ret = self.dbop.execute(query, ignore_error=True)
+        #if ret.is_error:
+        #    return
+        #header = self.dbop.get_current_columns()
+        #data = self.dbop.fetchall()
 
         # Print data on new window
-        location = self.selwin.get_location(dy=30)
-        win = QueryResultWindow(self.util, query, header, data, location)
-        self.util.winmgr.add_window(win)
+        #location = self.subwinmgr.get_location(dy=30)
+        #self.subwinmgr.create_window(QueryResultWindow, self.util, query, header, data, location)
+
+    def check_checkboxes(self, values, true_or_false):
+        for k in values.keys():
+            if k.endswith('.checkbox'):
+                self.window[k].Update(value=true_or_false)
+
+    def input_text_clear(self, values):
+        for k in values.keys():
+            if k.endswith('.inputtext'):
+                self.window[k].Update(value='')
 
     def create_clause(self, values):
         sql_select, sql_from, sql_where = self.create_query(values)
@@ -187,6 +252,10 @@ class FullJoinLayout(BaseLayout):
         sql_where = f'WHERE {sql_where}' if sql_where else ''
         if sql_select:
             self.show(sql_select, sql_from, sql_where, sql_others=sql_others)
+
+#
+# Create sql
+#
 
 def _create_select_clause(cb_cols):
     return 'SELECT ' + ', '.join(cb_cols)

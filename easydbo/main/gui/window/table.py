@@ -1,10 +1,11 @@
 import PySimpleGUI as sg
 import re
 from .filter import FilterWindow
-from .base import BaseWindow
-from .layout.common import Attribution as attr
-from .command.common import save_table_data, execute_table_command, make_grep_command
+from .base import BaseWindow, SubWindowManager
+from .common.layout import Attribution as attr
+from .common.command import save_table_data, execute_table_command, make_grep_command
 from easydbo.output.log import Log
+from .candidate import CandidateWindow
 
 class TableWindow(BaseWindow):
     def __init__(self, tname, util, location):
@@ -20,7 +21,6 @@ class TableWindow(BaseWindow):
         self.rightclick_location = (-1, -1)
         #
         self.filter_windows = None
-        self.candidate_windows = [None] * len(self.columns)
         #
         table = self.util.tableop.get_tables(targets=[self.tname])[0]
         self.pk = table.pk
@@ -96,7 +96,8 @@ class TableWindow(BaseWindow):
             )],
         ]
 
-        self.window = sg.Window(
+        # Window
+        self._window = sg.Window(
             f'EasyDBO {tname}',
             layout,
             size=(1300, 800),
@@ -104,6 +105,9 @@ class TableWindow(BaseWindow):
             finalize=True,
             location=location,
         )
+        # Subwindows
+        subwin_names = self.key_candidates + [self.key_filter, self.key_update]
+        self.subwinmgr = SubWindowManager(util.winmgr, self.window, subwin_names)
 
         # Table
         self.table = self.window[self.key_table]
@@ -128,8 +132,7 @@ class TableWindow(BaseWindow):
 
     def handle(self, event, values):
         if event in self.key_candidates:
-            idx = int(event.split('.')[-1])
-            self.open_candidate_window(idx)
+            self.open_candidate_window(event)
         elif event == self.key_insert:
             self.insert(values)
         elif event == self.key_clear:
@@ -147,9 +150,9 @@ class TableWindow(BaseWindow):
         elif event == self.key_printselect:
             self.print_table_data(rows=values[self.key_table])
         elif event == self.key_filter:
-            self.filter(values)
+            self.filter(event, values)
         elif event == self.key_update:
-            self.update(values)
+            self.update(event, values)
         elif event == self.key_delete:
             self.delete(values)
         elif (isinstance(event, tuple) and event[0:2] == (self.key_table, '+CICKED+')):  # On table
@@ -183,16 +186,12 @@ class TableWindow(BaseWindow):
         elif event == self.key_table_doubleclick:
             self.print_table_data(rows=values[self.key_table])
 
-    def open_candidate_window(self, idx):
-        if self.candidate_windows[idx] in self.util.winmgr.windows:
-            return
-        from .candidate import CandidateWindow
+    def open_candidate_window(self, key):
+        idx = int(key.split('.')[-1])
         data = [d[idx] for d in self.table_data]
         element = self.window[self.key_inputs[idx]]
-        location = self.get_location(widgetkey=self.key_inputs[idx], widgetx=True, widgety=True, dy=30)
-        win = CandidateWindow(data, self.util, element, location)
-        self.util.winmgr.add_window(win)
-        self.candidate_windows[idx] = win.get_window()
+        location = self.subwinmgr.get_location(widgetkey=self.key_inputs[idx], widgetx=True, widgety=True, dy=30)
+        self.subwinmgr.create_single_window(key, CandidateWindow, data, self.util, element, location)
 
     def get_fields(self, primary_value):
         # FIXME: Codes should be rewritten to type conversions rather than query database
@@ -237,22 +236,17 @@ class TableWindow(BaseWindow):
         for k, d in zip(self.key_inputs, data):
             self.window[k].update(d)
 
-    def filter(self, values):
-        if self.filter_windows in self.util.winmgr.windows:
-            return
-        location = self.get_location(widgetkey=self.key_filter, widgety=True, dy=60)
-        win = FilterWindow(self.tname, self.columns, self.table_data, self.util, location)
-        self.util.winmgr.add_window(win)
-        self.filter_windows = win.get_window()
+    def filter(self, key, values):
+        location = self.subwinmgr.get_location(widgetkey=self.key_filter, widgety=True, dy=60)
+        self.subwinmgr.create_single_window(key, FilterWindow, self.tname, self.columns, self.table_data, self.util, location)
 
-    def update(self, values):
+    def update(self, key, values):
         rows = sorted(values[self.key_table])
         if not rows:
             return
         data = [self.table_data[r] for r in rows]
-        location = self.get_location(widgetkey=self.key_update, widgety=True, dy=60)
-        winobj = TableUpdateWindow(self, self.util, rows, self.tname, self.columns, data, self.table_data, location)
-        self.util.winmgr.add_window(winobj)
+        location = self.subwinmgr.get_location(widgetkey=self.key_update, widgety=True, dy=60)
+        self.subwinmgr.create_single_window(key, TableUpdateWindow, self, self.util, rows, self.tname, self.columns, data, self.table_data, location)
 
     def notify_update(self, rows, updates):
         """
@@ -270,7 +264,7 @@ class TableWindow(BaseWindow):
         if not rows:
             return
         # Confirm deletion
-        #loc = self.get_location(widgetkey=self.key_delete, widgetx=True, widgety=True)
+        #loc = self.subwinmgr.get_location(widgetkey=self.key_delete, widgetx=True, widgety=True)
         #ret = sg.popup_ok_cancel('Delete selected rows?', keep_on_top=True, location=loc)
         #if ret == 'Cancel':
         #    return
@@ -357,7 +351,7 @@ class TableUpdateWindow(BaseWindow):
               for j, d0d in enumerate(d1d)] for i, d1d in enumerate(selected_data)],
         ]
 
-        self.window = sg.Window(
+        self._window = sg.Window(
             f'EasyDBO {tname} Update',
             layout,
             size=(1300, 400),

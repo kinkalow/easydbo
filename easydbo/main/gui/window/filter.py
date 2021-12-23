@@ -1,7 +1,7 @@
 import PySimpleGUI as sg
 import re
 from .base import BaseWindow
-from .layout.common import Attribution as attr
+from .common.layout import Attribution as attr
 
 class FilterWindow(BaseWindow):
     def __init__(self, tname, columns, tdata, util, location):
@@ -49,7 +49,7 @@ class FilterWindow(BaseWindow):
             )],
         ]
 
-        self.window = sg.Window(
+        self._window = sg.Window(
             'EasyDBO Filter',
             layout,
             size=(1300, 800),
