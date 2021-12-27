@@ -1,6 +1,5 @@
 import PySimpleGUI as sg
 import re
-from .filter import FilterWindow
 from .base import BaseWindow, SubWindowManager
 from .common.layout import Attribution as attr
 from .common.command import save_table_data, execute_table_command, make_grep_command
@@ -32,10 +31,9 @@ class TableWindow(BaseWindow):
         self.key_inputs = [f'{prefkey}{c}.input' for c in self.columns]
         self.key_candidates = [f'{prefkey}{c}.candidate.{i}' for i, c in enumerate(self.columns)]
         self.key_insert = f'{prefkey}insert'
-        self.key_clear = f'{prefkey}reset'
+        self.key_clear = f'{prefkey}clear'
         self.key_save = f'{prefkey}save'
         self.key_printall = f'{prefkey}printall'
-        self.key_filter = f'{prefkey}filter'
         self.key_greprun = f'{prefkey}grepbtn'
         self.key_greptext = f'{prefkey}greptext'
         self.key_copypaste = f'{prefkey}copypaste'
@@ -50,6 +48,9 @@ class TableWindow(BaseWindow):
         self.key_rightclick_copypastecell = 'CopyPasteCell'
         self.key_rightclick_printcell = 'PrintCell'
 
+        self.table_data = self.get_table_from_database()
+        self.filter_layout = FilterLayout(self)
+
         self.rightclick_commands = [self.key_rightclick_copypastecell, self.key_rightclick_printcell]
         layout = [
             [sg.Text(f' {tname} ', **attr.text_table)],
@@ -59,20 +60,21 @@ class TableWindow(BaseWindow):
                 sg.Button('Insert', **attr.base_button_with_color_warning, key=self.key_insert),
                 sg.Button('Clear', **attr.base_button_with_color_safety, key=self.key_clear),
             ],
-            [sg.Text()],
+            [
+                sg.Frame('Filter', self.filter_layout.layout),
+            ],
             [
                 sg.Frame('All', [
                     [
                         sg.InputText(**attr.base_inputtext, key=self.key_save, visible=False, enable_events=True),
                         sg.FileSaveAs('Save', **attr.base_button_with_color_safety, file_types=(('CSV', '.csv'), )),
                         sg.Button('Print', **attr.base_button_with_color_safety, key=self.key_printall),
-                        sg.Button('Filter', **attr.base_button_with_color_safety, key=self.key_filter),
-                        sg.Button('GrepRun', **attr.base_button_with_color_warning, key=self.key_greprun),
+                        sg.Button('GrepRun', **attr.base_button_with_color_safety, key=self.key_greprun),
                         sg.InputText('', **attr.base_inputtext, key=self.key_greptext),
                     ]
                 ],
                 title_location=sg.TITLE_LOCATION_RIGHT,
-                )
+                ),
             ],
             [
                 sg.Frame('Selected', [[
@@ -85,7 +87,7 @@ class TableWindow(BaseWindow):
                 )
             ],
             [sg.Table(
-                [['' for _ in range(len(self.columns))]],
+                self.table_data,
                 **attr.base_table,
                 key=self.key_table,
                 headings=self.columns,
@@ -100,43 +102,51 @@ class TableWindow(BaseWindow):
         self._window = sg.Window(
             f'EasyDBO {tname}',
             layout,
-            size=(1300, 800),
+            size=(1300, 1000),
             resizable=True,
             finalize=True,
             location=location,
         )
         # Subwindows
-        subwin_names = self.key_candidates + [self.key_filter, self.key_update]
+        subwin_names = self.key_candidates + [self.key_update]
         self.subwinmgr = SubWindowManager(util.winmgr, self.window, subwin_names)
 
         # Table
         self.table = self.window[self.key_table]
-        self.table_data = self._show_table_data()
 
         # Bind
         self.window[self.key_table].bind('<Button-3>', f'.{self.key_table_rightclick.split(".")[-1]}')
         self.window[self.key_table].bind('<Double-Button-1>', f'.{self.key_table_doubleclick.split(".")[-1]}')
         #self.window[self.key_greptext].bind('<Enter>', f'.{self.key_shellcmd_enter.split(".")[-1]}')  # Slow
 
-    def _show_table_data(self):
+    def get_table_from_database(self):
         query = f'SELECT * FROM {self.tname};'
         ret = self.dbop.execute(query, ignore_error=True)
         if ret.is_error:
             print(f'[Error] Something is wrong\n{ret}')
             return self.close()
         rows = self.dbop.fetchall()
-        self.table.update(rows)
         return rows
 
     # handle --->
 
     def handle(self, event, values):
+        if isinstance(event, tuple):
+            if event[0:2] == (self.key_table, '+CICKED+'):  # On table
+                row, col = event[2]
+                if row == -1:  # True when header line clicked
+                    self.sort(col)
+                #else:
+                #    self.input_row(row - 1)
+            return
         if event in self.key_candidates:
             self.open_candidate_window(event)
         elif event == self.key_insert:
             self.insert(values)
         elif event == self.key_clear:
             self.clear()
+        elif event.startswith(self.filter_layout.prefkey):
+            self.filter_layout.handle(event, values)
         elif event == self.key_save:
             path = values[self.key_save]
             self.save_as_csv(path)
@@ -149,18 +159,10 @@ class TableWindow(BaseWindow):
             self.copypaste(values)
         elif event == self.key_printselect:
             self.print_table_data(rows=values[self.key_table])
-        elif event == self.key_filter:
-            self.filter(event, values)
         elif event == self.key_update:
             self.update(event, values)
         elif event == self.key_delete:
             self.delete(values)
-        elif (isinstance(event, tuple) and event[0:2] == (self.key_table, '+CICKED+')):  # On table
-            row, col = event[2]
-            if row == -1:  # True when header line clicked
-                self.sort(col)
-            #else:
-            #    self.input_row(row - 1)
         elif event == self.key_table_rightclick:
             e = self.table.user_bind_event
             region = self.table.Widget.identify_region(e.x, e.y)
@@ -186,9 +188,19 @@ class TableWindow(BaseWindow):
         elif event == self.key_table_doubleclick:
             self.print_table_data(rows=values[self.key_table])
 
+    # <--- handle
+
     def open_candidate_window(self, key):
         idx = int(key.split('.')[-1])
-        data = [d[idx] for d in self.table_data]
+        #-----------------------------------------------
+        #data = [d[idx] for d in self.table_data]
+        # QUESTION: Slow performance?
+        query = f'SELECT DISTINCT({self.columns[idx]}) FROM {self.tname}'
+        ret = self.dbop.execute(query)
+        if ret.is_error:
+            Log.fatal_error(f'Bad query: {query}')
+        data = [d[0] for d in self.dbop.fetchall()]
+        #-----------------------------------------------
         element = self.window[self.key_inputs[idx]]
         location = self.subwinmgr.get_location(widgetkey=self.key_inputs[idx], widgetx=True, widgety=True, dy=30)
         self.subwinmgr.create_single_window(key, CandidateWindow, data, self.util, element, location)
@@ -235,10 +247,6 @@ class TableWindow(BaseWindow):
         data = self.table_data[idx_selected_rows[0]]
         for k, d in zip(self.key_inputs, data):
             self.window[k].update(d)
-
-    def filter(self, key, values):
-        location = self.subwinmgr.get_location(widgetkey=self.key_filter, widgety=True, dy=60)
-        self.subwinmgr.create_single_window(key, FilterWindow, self.tname, self.columns, self.table_data, self.util, location)
 
     def update(self, key, values):
         rows = sorted(values[self.key_table])
@@ -323,9 +331,6 @@ class TableWindow(BaseWindow):
         data = self.table.get()[row][col]
         print(data)
 
-    # <--- handle
-
-
 class TableUpdateWindow(BaseWindow):
     def __init__(self, parent, util, rows, tname, columns, selected_data, table_data, location):
         super().__init__(util.winmgr)
@@ -394,3 +399,75 @@ class TableUpdateWindow(BaseWindow):
         self.dbop.commit()
         self.parent.notify_update(rows, updates)
         self.close()
+
+
+class FilterLayout():
+    def __init__(self, parent):
+        self.parent = parent
+        self.columns = parent.columns
+
+        self.prefkey = prefkey = f'{parent.prefkey}filter.'
+        self.key_inputs = [f'{prefkey}{c}.input' for c in self.columns]
+        self.key_filter = f'{prefkey}filter'
+        self.key_clear = f'{prefkey}clear'
+        self.key_reset = f'{prefkey}reset'
+
+        #max_col = 5
+        #max_row = (len(columns) - 1) // max_col + 1
+        #text_inputtext = []
+        #for i in range(max_row):
+        #    s1, s2 = i * max_col, (i + 1) * max_col
+        #    cols = self.columns[s1: s2]
+        #    text_inputtext.append([sg.InputText('', **attr.base_inputtext_with_size, key=self.key_inputs[i]) for i, c in enumerate(cols)])
+        layout = [
+            [sg.Button('Filter', **attr.base_button_with_color_safety, key=self.key_filter),
+             sg.Button('Clear', **attr.base_button_with_color_safety, key=self.key_clear),
+             sg.Button('Reset', **attr.base_button_with_color_safety, key=self.key_reset)],
+            [sg.InputText('', **attr.base_inputtext_with_size, key=self.key_inputs[i]) for i in range(len(self.columns))]
+        ]
+
+        self.layout = layout
+
+    def handle(self, event, values):
+        if event == self.key_filter:
+            self.filter(values)
+        elif event == self.key_clear:
+            self.clear(values)
+        elif event == self.key_reset:
+            self.reset()
+
+    def filter(self, values):
+        columns = []
+        texts = []
+        for k, v in values.items():
+            if k in self.key_inputs and v:
+                columns.append(k.split('.')[2])
+                texts.append(v)
+        if not columns:
+            return
+        idxes = [self.columns.index(c) for c in columns]
+        db_data = self.parent.get_table_from_database()
+        table_data = []
+        for d in db_data:
+            for i, t in zip(idxes, texts):
+                data = d[i] if isinstance(d[i], str) else str(d[i])
+                if not re.search(f'.*{t}.*', data):
+                    break
+            else:
+                table_data.append(d)
+        if len(table_data) != len(db_data):
+            self.update(table_data)
+            self.parent.window[self.key_reset].update(button_color=('red', '#f5ccff'))
+
+    def clear(self, values):
+        [self.parent.window[k].update('') for k, v in values.items() if v and k in self.key_inputs]
+
+    def reset(self):
+        table_data = self.parent.get_table_from_database()
+        self.update(table_data)
+        color = (sg.DEFAULT_BUTTON_COLOR[0], attr.color_safety)
+        self.parent.window[self.key_reset].update(button_color=color)
+
+    def update(self, table_data):
+        self.parent.table_data = table_data
+        self.parent.table.update(table_data)
