@@ -1,5 +1,5 @@
 import PySimpleGUI as sg
-from .common.layout import Attribution as attr
+from .common.layout.attribution import Attribution as attr
 from .base import BaseWindow, SubWindowManager
 from easydbo.init.alias import AliasLoader
 from .common.sql import create_sql_result

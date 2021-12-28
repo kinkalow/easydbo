@@ -1,10 +1,11 @@
 import PySimpleGUI as sg
 import re
 from .base import BaseWindow, SubWindowManager
-from .common.layout import Attribution as attr
+from .common.layout.attribution import Attribution as attr
 from .common.command import save_table_data, execute_table_command, make_grep_command
 from easydbo.output.log import Log
 from .candidate import CandidateWindow
+from .common.layout.filter import FilterLayout
 
 class TableWindow(BaseWindow):
     def __init__(self, tname, util, location):
@@ -49,7 +50,8 @@ class TableWindow(BaseWindow):
         self.key_rightclick_printcell = 'PrintCell'
 
         self.table_data = self.get_table_from_database()
-        self.filter_layout = FilterLayout(self)
+        query = f'SELECT * from {tname}'
+        self.filter_layout = FilterLayout(prefkey, self.columns, self.key_table, util.dbop, query, self.table_data)
 
         self.rightclick_commands = [self.key_rightclick_copypastecell, self.key_rightclick_printcell]
         layout = [
@@ -60,19 +62,15 @@ class TableWindow(BaseWindow):
                 sg.Button('Insert', **attr.base_button_with_color_warning, key=self.key_insert),
                 sg.Button('Clear', **attr.base_button_with_color_safety, key=self.key_clear),
             ],
+            self.filter_layout.layout,
             [
-                sg.Frame('Filter', self.filter_layout.layout),
-            ],
-            [
-                sg.Frame('All', [
-                    [
-                        sg.InputText(**attr.base_inputtext, key=self.key_save, visible=False, enable_events=True),
-                        sg.FileSaveAs('Save', **attr.base_button_with_color_safety, file_types=(('CSV', '.csv'), )),
-                        sg.Button('Print', **attr.base_button_with_color_safety, key=self.key_printall),
-                        sg.Button('GrepRun', **attr.base_button_with_color_safety, key=self.key_greprun),
-                        sg.InputText('', **attr.base_inputtext, key=self.key_greptext),
-                    ]
-                ],
+                sg.Frame('All', [[
+                    sg.InputText(**attr.base_inputtext, key=self.key_save, visible=False, enable_events=True),
+                    sg.FileSaveAs('Save', **attr.base_button_with_color_safety, file_types=(('CSV', '.csv'), )),
+                    sg.Button('Print', **attr.base_button_with_color_safety, key=self.key_printall),
+                    sg.Button('GrepRun', **attr.base_button_with_color_safety, key=self.key_greprun),
+                    sg.InputText('', **attr.base_inputtext, key=self.key_greptext),
+                ]],
                 title_location=sg.TITLE_LOCATION_RIGHT,
                 ),
             ],
@@ -107,6 +105,8 @@ class TableWindow(BaseWindow):
             finalize=True,
             location=location,
         )
+        # Pass widnow
+        self.filter_layout.set_window(self._window)
         # Subwindows
         subwin_names = self.key_candidates + [self.key_update]
         self.subwinmgr = SubWindowManager(util.winmgr, self.window, subwin_names)
@@ -399,75 +399,3 @@ class TableUpdateWindow(BaseWindow):
         self.dbop.commit()
         self.parent.notify_update(rows, updates)
         self.close()
-
-
-class FilterLayout():
-    def __init__(self, parent):
-        self.parent = parent
-        self.columns = parent.columns
-
-        self.prefkey = prefkey = f'{parent.prefkey}filter.'
-        self.key_inputs = [f'{prefkey}{c}.input' for c in self.columns]
-        self.key_filter = f'{prefkey}filter'
-        self.key_clear = f'{prefkey}clear'
-        self.key_reset = f'{prefkey}reset'
-
-        #max_col = 5
-        #max_row = (len(columns) - 1) // max_col + 1
-        #text_inputtext = []
-        #for i in range(max_row):
-        #    s1, s2 = i * max_col, (i + 1) * max_col
-        #    cols = self.columns[s1: s2]
-        #    text_inputtext.append([sg.InputText('', **attr.base_inputtext_with_size, key=self.key_inputs[i]) for i, c in enumerate(cols)])
-        layout = [
-            [sg.Button('Filter', **attr.base_button_with_color_safety, key=self.key_filter),
-             sg.Button('Clear', **attr.base_button_with_color_safety, key=self.key_clear),
-             sg.Button('Reset', **attr.base_button_with_color_safety, key=self.key_reset)],
-            [sg.InputText('', **attr.base_inputtext_with_size, key=self.key_inputs[i]) for i in range(len(self.columns))]
-        ]
-
-        self.layout = layout
-
-    def handle(self, event, values):
-        if event == self.key_filter:
-            self.filter(values)
-        elif event == self.key_clear:
-            self.clear(values)
-        elif event == self.key_reset:
-            self.reset()
-
-    def filter(self, values):
-        columns = []
-        texts = []
-        for k, v in values.items():
-            if k in self.key_inputs and v:
-                columns.append(k.split('.')[2])
-                texts.append(v)
-        if not columns:
-            return
-        idxes = [self.columns.index(c) for c in columns]
-        db_data = self.parent.get_table_from_database()
-        table_data = []
-        for d in db_data:
-            for i, t in zip(idxes, texts):
-                data = d[i] if isinstance(d[i], str) else str(d[i])
-                if not re.search(f'.*{t}.*', data):
-                    break
-            else:
-                table_data.append(d)
-        if len(table_data) != len(db_data):
-            self.update(table_data)
-            self.parent.window[self.key_reset].update(button_color=('red', '#f5ccff'))
-
-    def clear(self, values):
-        [self.parent.window[k].update('') for k, v in values.items() if v and k in self.key_inputs]
-
-    def reset(self):
-        table_data = self.parent.get_table_from_database()
-        self.update(table_data)
-        color = (sg.DEFAULT_BUTTON_COLOR[0], attr.color_safety)
-        self.parent.window[self.key_reset].update(button_color=color)
-
-    def update(self, table_data):
-        self.parent.table_data = table_data
-        self.parent.table.update(table_data)

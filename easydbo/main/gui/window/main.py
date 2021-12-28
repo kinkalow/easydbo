@@ -6,7 +6,7 @@ from easydbo.output.log import Log
 from .base import BaseWindow, SubWindowManager
 from .alias import AliasWindow
 from .table import TableWindow
-from .common.layout import Attribution as attr
+from .common.layout.attribution import Attribution as attr
 from .common.sql import create_sql_result
 
 

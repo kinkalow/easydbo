@@ -1,15 +1,17 @@
 import PySimpleGUI as sg
 from .base import BaseWindow, SubWindowManager
-from .common.layout import Attribution as attr
+from .common.layout.attribution import Attribution as attr
+from .common.layout.filter import FilterLayout
 
 class QueryResultWindow(BaseWindow):
-    def __init__(self, util, query, header, data, location, use_query_btn=True):
+    def __init__(self, util, query, columns, table_data, location, use_query_btn=True):
         super().__init__(util.winmgr)
 
         self.util = util
         self.query = query
+        self.table_data = table_data
 
-        length = len(header[0])
+        length = len(columns[0])
 
         self.prefkey = prefkey = util.make_timestamp_prefix('result')
         self.key_querybtn = f'{prefkey}querybutton'
@@ -19,6 +21,8 @@ class QueryResultWindow(BaseWindow):
         self.key_save = f'{prefkey}csvbutton'
         self.key_table = f'{prefkey}table'
 
+        self.filter_layout = FilterLayout(prefkey, columns, self.key_table, util.dbop, self.query)
+
         if use_query_btn:
             query_btn = [
                 sg.Button('Query', **attr.base_button_with_color_safety, key=self.key_querybtn),
@@ -27,6 +31,7 @@ class QueryResultWindow(BaseWindow):
         else:
             query_btn = []
         self.layout = [query_btn] + [
+            self.filter_layout.layout,
             [
                 sg.Button('Grep', **attr.base_button_with_color_safety, key=self.key_grepbtn),
                 sg.InputText('', **attr.base_text, key=self.key_grepinputtxt),
@@ -41,10 +46,10 @@ class QueryResultWindow(BaseWindow):
             ],
             [
                 sg.Table(
-                    data,
+                    table_data,
                     **attr.base_table,
                     key=self.key_table,
-                    headings=header,
+                    headings=columns,
                     col_widths=[20 for _ in range(length)],
                     expand_y=True,
                 )
@@ -59,6 +64,8 @@ class QueryResultWindow(BaseWindow):
             resizable=True,
             finalize=True,
         )
+        # Pass widnow
+        self.filter_layout.set_window(self._window)
         # Subwindows
         subwin_names = [self.key_querybtn]
         self.subwinmgr = SubWindowManager(util.winmgr, self.window, subwin_names)
@@ -69,13 +76,15 @@ class QueryResultWindow(BaseWindow):
         #            canvas.itemconfig(frame_id, width=canvas.winfo_width()))
 
     def get_table_data(self):
-        header = self.window[self.key_table].ColumnHeadings
+        columns = self.window[self.key_table].ColumnHeadings
         data = self.window[self.key_table].get()
-        return header, data
+        return columns, data
 
     def handle(self, event, values):
         if event == self.key_querybtn:
             self.add_alias(event)
+        elif event.startswith(self.filter_layout.prefkey):
+            self.filter_layout.handle(event, values)
         elif event == self.key_grepbtn:
             self.grep()
         elif event == self.key_save:
@@ -91,7 +100,7 @@ class QueryResultWindow(BaseWindow):
         grep_pat = self.window[self.key_grepinputtxt].get()
         if not grep_pat:
             return
-        header, data = self.get_table_data()
+        columns, data = self.get_table_data()
         data_sp = self.util.to_csv([], data, delimiter=' ')
         new_data = []
         try:
@@ -117,7 +126,7 @@ class QueryResultWindow(BaseWindow):
             self.print(f'All data matched for patten: {grep_pat}')
             return
         # Show grep result on new window
-        win = QueryResultWindow(self.winmgr, self.util, grep_cmd, header, new_data, use_query_btn=False)
+        win = QueryResultWindow(self.winmgr, self.util, grep_cmd, columns, new_data, use_query_btn=False)
         self.winmgr.add_window(win)
 
     def save_as_csv(self, path):

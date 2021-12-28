@@ -1,7 +1,7 @@
 import re
 import PySimpleGUI as sg
 from .base import BaseWindow
-from .common.layout import Attribution as attr
+from .common.layout.attribution import Attribution as attr
 
 class CandidateWindow(BaseWindow):
     def __init__(self, data, util, parent_element, location):

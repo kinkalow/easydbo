@@ -7,6 +7,7 @@ class Attribution:
 
     base_button = {'font': ('', 12)}
     base_checkbox = {'font': ('', 12)}
+    #base_frame = {'border_width': 1}
     base_inputtext = {'font': ('', 12)}
     base_multiline = {'font': ('', 12)}
     base_text = {'font': ('', 12)}

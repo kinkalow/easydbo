@@ -1,7 +1,7 @@
 import PySimpleGUI as sg
 import re
 from .base import BaseWindow
-from .common.layout import Attribution as attr
+from .common.layout.attribution import Attribution as attr
 
 class FilterWindow(BaseWindow):
     def __init__(self, tname, columns, tdata, util, location):
