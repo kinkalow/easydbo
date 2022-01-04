@@ -21,7 +21,7 @@ class QueryResultWindow(BaseWindow):
         self.key_save = f'{prefkey}csvbutton'
         self.key_table = f'{prefkey}table'
 
-        self.filter_layout = FilterLayout(prefkey, columns, self.key_table, util.dbop, self.query)
+        self.filter_layout = FilterLayout(prefkey, columns, self.key_table, util.dbop, self.query, display_columns=True)
 
         if use_query_btn:
             query_btn = [

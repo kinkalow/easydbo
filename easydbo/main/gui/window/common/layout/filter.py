@@ -3,7 +3,7 @@ import PySimpleGUI as sg
 from .attribution import Attribution as attr
 
 class FilterLayout():
-    def __init__(self, prefix_key, columns, key_table, dbop, query, caller_table_data=None):
+    def __init__(self, prefix_key, columns, key_table, dbop, query, caller_table_data=None, display_columns=False):
         """
         prefix_key       : str        : Prefix for key
         columns          : List(str)  : List with column names as elements
@@ -33,10 +33,13 @@ class FilterLayout():
         #    s1, s2 = i * max_col, (i + 1) * max_col
         #    cols = self.columns[s1: s2]
         #    text_inputtext.append([sg.InputText('', **attr.base_inputtext_with_size, key=self.key_inputs[i]) for i, c in enumerate(cols)])
+        column_names = [sg.Text(c, **attr.base_text_with_size) for c in columns] if display_columns else []
+
         layout = [
             [sg.Button('Filter', **attr.base_button_with_color_safety, key=self.key_filter),
              sg.Button('Clear', **attr.base_button_with_color_safety, key=self.key_clear),
              sg.Button('Reset', **attr.base_button_with_color_safety, key=self.key_reset)],
+        ] + [column_names] + [
             [sg.InputText('', **attr.base_inputtext_with_size, key=self.key_inputs[i]) for i in range(len(columns))]
         ]
         layout = [sg.Frame('', layout)]

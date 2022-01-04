@@ -2,7 +2,6 @@ import re
 import functools
 import PySimpleGUI as sg
 from easydbo.exception import EASYDBO_GOTO_LOOP, EASYDBO_USER_ERROR
-from easydbo.output.log import Log
 from .base import BaseWindow, SubWindowManager
 from .alias import AliasWindow
 from .table import TableWindow
@@ -183,45 +182,36 @@ class FullJoinLayout():
             self.query(values_rmv)
 
     def create_query(self, values):
-        # Create SELECT clause from checkboxes
-        cbs = [k for k, v in values.items() if k.endswith('.checkbox') and v]  # k='prefkey.table.column.suffix'
-        cb_tbls = [c.split('.')[1] for c in cbs]
-        cb_cols = [c.split('.')[2] for c in cbs]
-        sql_select = _create_select_clause(cb_cols)
-
         # Do nothing if none of checkboxes are selected
+        cbs = [k for k, v in values.items() if k.endswith('.checkbox') and v]  # k='prefkey.table.column.suffix'
         if not cbs:
             raise EASYDBO_GOTO_LOOP('Checkboxes are not selected.')
 
-        # Create WHERE clause from input texts
-        inputs = [(k, v) for k, v in values.items()
-                  if k.endswith('.inputtext') and v]
+        # Processing relating to selected checkboxes and inputted texts
+        cb_tbls = [c.split('.')[1] for c in cbs]
+        cb_cols = [c.split('.')[2] for c in cbs]
+        inputs = [(k, v) for k, v in values.items() if k.endswith('.inputtext') and v]
         inp_tbls = [i[0].split('.')[1] for i in inputs]
         inp_cols = [i[0].split('.')[2] for i in inputs]
         inp_conds = [i[1] for i in inputs]
-        sql_where = _create_where_clause(inp_tbls, inp_cols, inp_conds)
 
-        # Create FROM clause from checkboxes and input texts
-        sql_from = _create_from_clause(self.tableop, cb_tbls, inp_tbls)
+        # Create required table names
+        tnames = set([t for t in cb_tbls + inp_tbls])
+        tnames = [t for t in self.tableop.get_tnames() if t in tnames]  # Sort
+
+        # Create sql
+        same_cols = self.tableop.get_same_column_names()
+        sql_select = _create_select_clause(tnames, cb_tbls, cb_cols, same_cols)
+        sql_where = _create_where_clause(tnames, inp_tbls, inp_cols, inp_conds, same_cols)
+        sql_from = _create_from_clause(self.tableop, tnames, cb_tbls, inp_tbls)
 
         # Result
         return sql_select, sql_from, sql_where
 
     def show(self, sql_select, sql_from, sql_where, sql_others=''):
-        # Query
         query = f'{sql_select} {sql_from} {sql_where} {sql_others}'.rstrip() + ';'
         location = self.subwinmgr.get_location(dy=30)
         create_sql_result(query, self.util, self.subwinmgr, location)
-        #return
-        #ret = self.dbop.execute(query, ignore_error=True)
-        #if ret.is_error:
-        #    return
-        #header = self.dbop.get_current_columns()
-        #data = self.dbop.fetchall()
-
-        # Print data on new window
-        #location = self.subwinmgr.get_location(dy=30)
-        #self.subwinmgr.create_window(QueryResultWindow, self.util, query, header, data, location)
 
     def check_checkboxes(self, values, true_or_false):
         for k in values.keys():
@@ -250,15 +240,27 @@ class FullJoinLayout():
         sql_select = f'SELECT {sql_select}' if sql_select else ''
         sql_from = f'FROM {sql_from}' if sql_from else ''
         sql_where = f'WHERE {sql_where}' if sql_where else ''
-        if sql_select:
+        if sql_select or (not sql_select and not sql_from and not sql_where and sql_others):
             self.show(sql_select, sql_from, sql_where, sql_others=sql_others)
 
 #
 # Create sql
 #
 
-def _create_select_clause(cb_cols):
-    return 'SELECT ' + ', '.join(cb_cols)
+# ---> select clause
+
+def _renames_columns_for_select(tbls, cols, coms, need_as):
+    if need_as:
+        return [f'{t}.{c} AS {t}${c}' if c in coms else c for t, c in zip(tbls, cols)]
+    else:
+        return [f'{t}${c}' if c in coms else c for t, c in zip(tbls, cols)]
+
+def _create_select_clause(tnames, cb_tbls, cb_cols, same_cols):
+    cols = _renames_columns_for_select(cb_tbls, cb_cols, same_cols, len(tnames) == 1)
+    return 'SELECT ' + ', '.join(cols)
+
+# <--- select clause
+# ---> where clause
 
 def _parse_condition(column, condition):
     try:
@@ -320,50 +322,86 @@ def _parse_condition(column, condition):
         msg += f'\n{add_err_msg}' if add_err_msg else ''
         raise EASYDBO_GOTO_LOOP(msg)
 
-def _create_where_clause(inp_tbls, inp_cols, inp_conds):
+def _renames_columns_for_where(tbls, cols, coms, use_dot):
+    dot_or_dollar = '.' if use_dot else '$'
+    return [f'{t}{dot_or_dollar}{c}' if c in coms else c for t, c in zip(tbls, cols)]
+
+def _create_where_clause(tnames, inp_tbls, inp_cols, inp_conds, same_cols):
     if not inp_tbls:
         return ''
+    re_inp_cols = _renames_columns_for_where(inp_tbls, inp_cols, same_cols, len(tnames) == 1)
     conds = []
-    for t, c, cond_str in zip(inp_tbls, inp_cols, inp_conds):
+    for t, c, cond_str in zip(inp_tbls, re_inp_cols, inp_conds):
         cond_str = _parse_condition(c, cond_str)
         conds.append(cond_str)
     return 'WHERE ' + ' AND '.join(conds)
 
-def _check_common_column(tnames, tableop):
+# <--- where clause
+# ---> from clause
+
+def _get_same_column_names(tableop, tnames):
+    '''
+    Params
+        tableop:          : Table operation object
+        tnames : List[Str]: Table names with two or more elements
+    Return
+        same_cols: List[List[Str]]:  Column names with the same names in each table
+    '''
     columns = tableop.get_columns(tnames, full=True)
+    same_cols = []
     sets = set(columns[0])
     for i in range(1, len(tnames)):
         s = set(columns[i])
         sets = sets.intersection(s)
         if len(sets) == 0:
-            Log.error(f'"{tnames[i-1]}" and "{tnames[i]}" have no common column')
+            raise EASYDBO_GOTO_LOOP(f'"{tnames[i-1]}" and "{tnames[i]}" have no common column')
+        same_cols.append(list(sets))
+    return same_cols
 
-def _create_from_clause(tableop, cb_tbls, inp_tbls):
-    tnames = set([t for t in cb_tbls + inp_tbls])
-    tnames = [t for t in tableop.get_tnames() if t in tnames]  # Sort
+def _create_subquery_columns(tableop, tnames):
+    '''
+    Params
+        tableop:          : Table operation object
+        tnames : List[Str]: Table names with two or more elements
+    Return
+        sel_cols: List[Str]: column names for subquery SELECT clause
+    '''
+    same_cols = _get_same_column_names(tableop, tnames)
+    columns_l = tableop.get_columns([tnames[0]], full=True)[0]
+    columns_r = tableop.get_columns([tnames[1]], full=True)[0]
+    renames_l = [f'{tnames[0]}.{c} AS {tnames[0]}${c}' if c in same_cols[0] else c for i, c in enumerate(columns_l)]
+    renames_r = [f'{tnames[1]}.{c} AS {tnames[1]}${c}' if c in same_cols[0] else c for i, c in enumerate(columns_r)]
+    sel_cols = [', '.join(renames_l + renames_r)]
+    if len(tnames) == 2:
+        return sel_cols
+    nexts_l = [f'{tnames[0]}${c}' if c in same_cols[0] else c for i, c in enumerate(columns_l)]
+    nexts_r = [f'{tnames[1]}${c}' if c in same_cols[0] else c for i, c in enumerate(columns_r)]
+    next_str = ', '.join(nexts_l + nexts_r)
+    for it in range(2, len(tnames)):
+        columns = tableop.get_columns([tnames[it]], full=True)[0]
+        renames = [f'{tnames[it]}.{c} AS {tnames[it]}${c}' if c in same_cols[it - 1] else c for c in columns]
+        columns_str = next_str + ', ' + ', '.join(renames)
+        sel_cols.append(columns_str)
+        if it != len(tnames) - 1:
+            nexts = [f'{tnames[it]}${c}' if c in same_cols[it - 1] else c for c in columns]
+            next_str += ', ' + ', '.join(nexts)
+    for i in range(len(same_cols) - 1):
+        sel_cols[i] += ', ' + ', '.join(same_cols[i])
+    return sel_cols
 
+
+def _create_from_clause(tableop, tnames, cb_tbls, inp_tbls):
     if len(tnames) == 1:
         sql_from = f'FROM {tnames[0]}'
-
     else:
-        _check_common_column(tnames, tableop)
-        columns = subquery = ''
+        columns = _create_subquery_columns(tableop, tnames)
+        subquery = ''
         for i in range(len(tnames) - 1):
-            if i == 0:
-                column_l = tableop.get_columns([tnames[0]], full=True)[0]
-                column_r = tableop.get_columns([tnames[1]], full=True)[0]
-                table_l, table_r = tnames[0], tnames[1]
-            else:
-                column_l = columns
-                column_r = tableop.get_columns([tnames[i + 1]], full=True)[0]
-                table_l, table_r = tnames[1 + i], subquery
-            columns = column_l + [c for c in column_r if c not in column_l]
-            columns_str = ', '.join(columns)
+            table_l, table_r = (tnames[0], tnames[1]) if i == 0 else (tnames[1 + i], subquery)
             subquery = f'''
-(SELECT {columns_str} FROM {table_l} NATURAL LEFT JOIN {table_r}
+(SELECT {columns[i]} FROM {table_l} NATURAL LEFT JOIN {table_r}
 UNION
-SELECT {columns_str} FROM {table_l} NATURAL RIGHT JOIN {table_r})_
+SELECT {columns[i]} FROM {table_l} NATURAL RIGHT JOIN {table_r})_
 '''.strip()
         sql_from = 'FROM ' + subquery.replace('\n', ' ')
-
     return sql_from

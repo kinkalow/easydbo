@@ -25,6 +25,11 @@ class TableOperator():
 
     # Get --->
 
+    def get_same_column_names(self):
+        col2d = self.get_columns(full=True)
+        col1d = [c for c1d in col2d for c in c1d]
+        return sorted([c for c in set(col1d) if col1d.count(c) > 1])
+
     def get_columns(self, targets=None, full=False):
         if targets is None:
             return [t.fullcolumns for t in self.tables] if full else \
