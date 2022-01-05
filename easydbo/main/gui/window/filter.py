@@ -4,14 +4,14 @@ from .base import BaseWindow
 from .common.layout.attribution import Attribution as attr
 
 class FilterWindow(BaseWindow):
-    def __init__(self, tname, columns, tdata, util, location):
-        super().__init__(util.winmgr)
+    def __init__(self, tname, columns, tdata, pack, location):
+        super().__init__(pack.winmgr)
 
         self.columns = columns
         self.tdata = tdata
-        self.util = util
+        self.pack = pack
 
-        prefkey = util.make_timestamp_prefix(f'table{tname}filter')
+        prefkey = self.make_prefix_key(f'table{tname}filter', timestamp=True)
         self.key_tname = f'{prefkey}{tname}'
         self.key_columns = [f'{prefkey}{c}' for c in self.columns]
         self.key_inputs = [f'{prefkey}{c}.input' for c in self.columns]

@@ -3,11 +3,11 @@ from .base import BaseWindow
 from .common.layout.attribution import Attribution as attr
 
 class SaveAsAliasWindow(BaseWindow):
-    def __init__(self, util, query, location):
-        super().__init__(util.winmgr)
+    def __init__(self, pack, query, location):
+        super().__init__(pack.winmgr)
 
         # Layout
-        prefkey = util.make_timestamp_prefix('saveasalias')
+        prefkey = self.make_prefix_key('saveasalias', timestamp=True)
         self.key_save = f'{prefkey}save'
         self.key_alias = f'{prefkey}alias'
         self.key_query = f'{prefkey}query'

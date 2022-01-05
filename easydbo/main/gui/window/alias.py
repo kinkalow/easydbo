@@ -5,13 +5,13 @@ from easydbo.init.alias import AliasLoader
 from .common.sql import create_sql_result
 
 class AliasWindow(BaseWindow):
-    def __init__(self, util, location, parent_alias_method, size=None):
-        super().__init__(util.winmgr)
-        self.util = util
+    def __init__(self, pack, location, parent_alias_method, size=None):
+        super().__init__(pack.winmgr)
+        self.pack = pack
         self.parent_alias_method = parent_alias_method
 
-        self.prefkey = prefkey = '_alias__.'
-        #aliases = util.aliases
+        self.prefkey = prefkey = self.make_prefix_key('alias')
+        #aliases = pack.aliases
         aliases = AliasLoader().get()
         placeholder_mark = '?'
         self.key_reset = f'{prefkey}reset'
@@ -55,7 +55,7 @@ class AliasWindow(BaseWindow):
             location=location,
         )
         subwin_names = self.key_aliasnames
-        self.subwinmgr = SubWindowManager(util.winmgr, self.window, subwin_names)
+        self.subwinmgr = SubWindowManager(pack.winmgr, self.window, subwin_names)
 
         frame_id = self.window[self.key_scroll].Widget.frame_id
         canvas = self.window[self.key_scroll].Widget.canvas
@@ -82,4 +82,4 @@ class AliasWindow(BaseWindow):
 
     def query(self, key, query):
         location = self.subwinmgr.get_location(widgetkey=key, widgetx=True, widgety=True, dy=60)
-        create_sql_result(query, self.util, self.subwinmgr, location)
+        create_sql_result(query, self.pack, self.subwinmgr, location)

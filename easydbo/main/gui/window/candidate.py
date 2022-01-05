@@ -4,15 +4,15 @@ from .base import BaseWindow
 from .common.layout.attribution import Attribution as attr
 
 class CandidateWindow(BaseWindow):
-    def __init__(self, data, util, parent_element, location):
-        super().__init__(util.winmgr)
+    def __init__(self, data, pack, parent_element, location):
+        super().__init__(pack.winmgr)
 
         self.data = sorted(set([str(d) for d in data]))
         self.data = [[d] for d in sorted(set([str(d) for d in data]))]
         self.parent_element = parent_element
         self.num_buttons = min([30, len(self.data)])
 
-        prefkey = util.make_timestamp_prefix('candidate')
+        prefkey = self.make_prefix_key('candidate', timestamp=True)
         self.key_input = f'{prefkey}input'
         self.key_numbercandidate = f'{prefkey}numbercandidate'
         self.key_cancel = f'{prefkey}cancel'

@@ -10,20 +10,20 @@ from .common.sql import create_sql_result
 
 
 class MainWindow(BaseWindow):
-    def __init__(self, util):
-        super().__init__(util.winmgr)
-        self.util = util
-        tnames = util.tnames
+    def __init__(self, pack):
+        super().__init__(pack.winmgr)
+        self.pack = pack
+        tnames = pack.tableop.get_tnames()
 
-        prefkey = '_main__.'
+        prefkey = self.make_prefix_key('main')
         self.key_tables = [f'{prefkey}{t}' for t in tnames]
         self.key_alias = f'{prefkey}alias'
         self.key_excel = f'{prefkey}excel'
 
         # Layout
-        self.fulljoin = FullJoinLayout(prefkey, util)
+        self.fulljoin = FullJoinLayout(prefkey, pack)
         layout = [
-            [sg.Button(f' {tn} ', **attr.base_button_with_color_warning, key=self.key_tables[i]) for i, tn in enumerate(util.tnames)],
+            [sg.Button(f' {tn} ', **attr.base_button_with_color_warning, key=self.key_tables[i]) for i, tn in enumerate(tnames)],
             [sg.Button(' Alias ', **attr.base_button_with_color_safety, key=self.key_alias),
              sg.Button(' Excel ', **attr.base_button_with_color_warning, key=self.key_excel)],
             [sg.Text('')],
@@ -41,7 +41,7 @@ class MainWindow(BaseWindow):
         )
         # Subwindows
         subwin_names = self.key_tables + [self.key_alias]
-        self.subwinmgr = SubWindowManager(util.winmgr, self.window, subwin_names)
+        self.subwinmgr = SubWindowManager(pack.winmgr, self.window, subwin_names)
         # Add window objects to fulljoin layout
         self.fulljoin.set_window(self.window, self.subwinmgr)
 
@@ -58,7 +58,7 @@ class MainWindow(BaseWindow):
     def open_table(self, key):
         tname = key.split('.')[-1]
         location = self.subwinmgr.get_location(dy=80)
-        self.subwinmgr.create_single_window(key, TableWindow, tname, self.util, location)
+        self.subwinmgr.create_single_window(key, TableWindow, tname, self.pack, location)
 
     def alias(self, key, location=None, size=None):
         # NOTE: This method is also invoked in AliasWindow class
@@ -66,19 +66,21 @@ class MainWindow(BaseWindow):
         if not location:
             location = self.subwinmgr.get_location(widgetkey=self.key_alias, widgety=True, dy=60)
         alias_method = functools.partial(self.alias, key)
-        self.subwinmgr.create_single_window(key, AliasWindow, self.util, location, alias_method, size=size)
+        self.subwinmgr.create_single_window(key, AliasWindow, self.pack, location, alias_method, size=size)
 
 
 class FullJoinLayout():
-    def __init__(self, prefkey, util):
-        self.util = util
+    def __init__(self, prefkey, pack):
+        self.pack = pack
 
-        self.tableop = util.tableop
-        self.dbop = util.dbop
+        self.tableop = pack.tableop
+        self.dbop = pack.dbop
+        tnames = pack.tableop.get_tnames()
+        fullcolumns = pack.tableop.get_columns(full=True)
 
         self.prefkey = prefkey
-        self.key_cols_cbs = [[f'{prefkey}{t}.{c}.checkbox' for c in util.fullcolumns[i]] for i, t in enumerate(util.tnames)]
-        self.key_cols_conds = [[f'{prefkey}{t}.{c}.inputtext' for c in util.fullcolumns[i]] for i, t in enumerate(util.tnames)]
+        self.key_cols_cbs = [[f'{prefkey}{t}.{c}.checkbox' for c in fullcolumns[i]] for i, t in enumerate(tnames)]
+        self.key_cols_conds = [[f'{prefkey}{t}.{c}.inputtext' for c in fullcolumns[i]] for i, t in enumerate(tnames)]
         self.key_show = f'{prefkey}show'
         self.key_checkall = f'{prefkey}checkall'
         self.key_checkclear = f'{prefkey}checkclear'
@@ -92,17 +94,17 @@ class FullJoinLayout():
 
         # Full Outer Join
         tnames_columns = []
-        for i, tn in enumerate(util.tnames):
+        for i, tn in enumerate(tnames):
             tnames_columns.append([
                 sg.Text(f' {tn} ', **attr.text_table, size=(len(tn) + 2, 1)),
             ])
             tnames_columns.append([
                 sg.Checkbox(c, key=self.key_cols_cbs[i][j], **attr.base_checkbox, size=(20 - 3, 1))
-                for j, c in enumerate(util.fullcolumns[i])
+                for j, c in enumerate(fullcolumns[i])
             ])
             tnames_columns.append([
                 sg.InputText('', key=self.key_cols_conds[i][j], **attr.base_inputtext, size=(20, 1))
-                for j, c in enumerate(util.fullcolumns[i])
+                for j, c in enumerate(fullcolumns[i])
             ])
         join_frame = sg.Frame(
             '', tnames_columns,
@@ -211,7 +213,7 @@ class FullJoinLayout():
     def show(self, sql_select, sql_from, sql_where, sql_others=''):
         query = f'{sql_select} {sql_from} {sql_where} {sql_others}'.rstrip() + ';'
         location = self.subwinmgr.get_location(dy=30)
-        create_sql_result(query, self.util, self.subwinmgr, location)
+        create_sql_result(query, self.pack, self.subwinmgr, location)
 
     def check_checkboxes(self, values, true_or_false):
         for k in values.keys():

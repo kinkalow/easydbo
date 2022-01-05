@@ -1,11 +1,10 @@
 import sys
 import PySimpleGUI as sg
 from .main import MainWindow
-from datetime import datetime
 from easydbo.exception import EASYDBO_GOTO_LOOP
 
 
-class Util:
+class Pack:
     def __init__(self, winmgr, configs, aliases, tableop, dbop):
         self.winmgr = winmgr
         self.configs = configs
@@ -13,30 +12,11 @@ class Util:
         self.tableop = tableop
         self.dbop = dbop
 
-        self.tnames = [t.name for t in tableop.get_tables()]
-        self.columns = tableop.get_columns()
-        self.fullcolumns = tableop.get_columns(full=True)
-
-    def call(self, func_args):
-        if func_args:
-            func, args = func_args[0], func_args[1:]
-            func(*args)
-
-    def to_csv(self, header, data2d, delimiter=','):
-        header_csv = delimiter.join(header)
-        data_csv = '\n'.join([delimiter.join(d1) for d1 in data2d])
-        data_csv = f'{data_csv}\n' if data_csv else data_csv
-        return f'{header_csv}\n{data_csv}' if header else data_csv
-
-    def make_timestamp_prefix(self, prefix):
-        return f'_{prefix}{int(datetime.now().timestamp())}__.'
-
 
 class WindowManger():
-
     def __init__(self, configs, aliases, tableop, dbop):
-        util = Util(self, configs, aliases, tableop, dbop)
-        select = MainWindow(util)
+        pack = Pack(self, configs, aliases, tableop, dbop)
+        select = MainWindow(pack)
         self.windows = {select.window: select}
         self.main_window = select.window
 

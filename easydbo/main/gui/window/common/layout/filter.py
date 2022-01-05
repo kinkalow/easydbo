@@ -3,14 +3,14 @@ import PySimpleGUI as sg
 from .attribution import Attribution as attr
 
 class FilterLayout():
-    def __init__(self, prefix_key, columns, key_table, dbop, query, caller_table_data=None, display_columns=False):
+    def __init__(self, prefix_key, columns, key_table, dbop, query, call_func_on_update=None, display_columns=False):
         """
-        prefix_key       : str        : Prefix for key
-        columns          : List(str)  : List with column names as elements
-        key_table        : str        : Key for sg.Table
-        dbop             : object     : Database operation object
-        query            : str        : Query database to restore original data
-        caller_table_data: Dict(taple): Caller's table data. Update the caller's table data when table data are filtered or reset
+        prefix_key         : str        : Prefix for key
+        columns            : List(str)  : List with column names as elements
+        key_table          : str        : Key for sg.Table
+        dbop               : object     : Database operation object
+        query              : str        : Query database to restore original data
+        call_func_on_update: Dict(taple): Call the caller's function with updated table data as an argument when filtering or reseting table
 
         NOTE: Caller must call self.set_window method of callee
         """
@@ -18,7 +18,7 @@ class FilterLayout():
         self.query = query
         self.key_table = key_table
         self.dbop = dbop
-        self.caller_table_data = caller_table_data
+        self.call_func_on_update = call_func_on_update
 
         self.prefkey = prefkey = f'{prefix_key}filter.'
         self.key_inputs = [f'{prefkey}{c}.input' for c in columns]
@@ -99,6 +99,6 @@ class FilterLayout():
         self.window[self.key_reset].update(button_color=color)
 
     def update(self, table_data):
-        if self.caller_table_data:
-            self.caller_table_data = table_data
+        if self.call_func_on_update:
+            self.call_func_on_update(table_data)
         self.window[self.key_table].update(table_data)

@@ -8,26 +8,26 @@ from .candidate import CandidateWindow
 from .common.layout.filter import FilterLayout
 
 class TableWindow(BaseWindow):
-    def __init__(self, tname, util, location):
-        super().__init__(util.winmgr)
+    def __init__(self, tname, pack, location):
+        super().__init__(pack.winmgr)
 
         self.tname = tname
-        self.util = util
+        self.pack = pack
         #
-        self.dbop = util.dbop
-        self.columns = util.tableop.get_columns([tname], full=True)[0]
-        #self.types = util.tableop.get_types([tname])[0]
+        self.dbop = pack.dbop
+        self.columns = pack.tableop.get_columns([tname], full=True)[0]
+        #self.types = pack.tableop.get_types([tname])[0]
         self.sort_reverse = True
         self.rightclick_location = (-1, -1)
         #
         self.filter_windows = None
         #
-        table = self.util.tableop.get_tables(targets=[self.tname])[0]
+        table = self.pack.tableop.get_tables(targets=[self.tname])[0]
         self.pk = table.pk
         self.pkidx = table.pkidx
         self.pkauto = table.pkauto
 
-        self.prefkey = prefkey = f'_table{tname}__.'
+        prefkey = self.make_prefix_key(f'table{tname}')
         #self.key_columns = [f'{prefkey}{c}' for c in self.columns]
         self.key_inputs = [f'{prefkey}{c}.input' for c in self.columns]
         self.key_candidates = [f'{prefkey}{c}.candidate.{i}' for i, c in enumerate(self.columns)]
@@ -51,7 +51,7 @@ class TableWindow(BaseWindow):
 
         self.table_data = self.get_table_from_database()
         query = f'SELECT * from {tname}'
-        self.filter_layout = FilterLayout(prefkey, self.columns, self.key_table, util.dbop, query, self.table_data)
+        self.filter_layout = FilterLayout(prefkey, self.columns, self.key_table, pack.dbop, query, call_func_on_update=self._update_table_on_filter)
 
         self.rightclick_commands = [self.key_rightclick_copypastecell, self.key_rightclick_printcell]
         layout = [
@@ -109,7 +109,7 @@ class TableWindow(BaseWindow):
         self.filter_layout.set_window(self._window)
         # Subwindows
         subwin_names = self.key_candidates + [self.key_update]
-        self.subwinmgr = SubWindowManager(util.winmgr, self.window, subwin_names)
+        self.subwinmgr = SubWindowManager(pack.winmgr, self.window, subwin_names)
 
         # Table
         self.table = self.window[self.key_table]
@@ -203,7 +203,7 @@ class TableWindow(BaseWindow):
         #-----------------------------------------------
         element = self.window[self.key_inputs[idx]]
         location = self.subwinmgr.get_location(widgetkey=self.key_inputs[idx], widgetx=True, widgety=True, dy=30)
-        self.subwinmgr.create_single_window(key, CandidateWindow, data, self.util, element, location)
+        self.subwinmgr.create_single_window(key, CandidateWindow, data, self.pack, element, location)
 
     def get_fields(self, primary_value):
         # FIXME: Codes should be rewritten to type conversions rather than query database
@@ -232,6 +232,7 @@ class TableWindow(BaseWindow):
             return
         self.dbop.commit()
         data_conv = self.get_fields(data[self.pkidx])
+        #self.table.get().insert(0, data_conv)
         self.table_data.insert(0, data_conv)
         self.table.update(self.table_data)
         print(f'[Insert] {data}')
@@ -254,18 +255,7 @@ class TableWindow(BaseWindow):
             return
         data = [self.table_data[r] for r in rows]
         location = self.subwinmgr.get_location(widgetkey=self.key_update, widgety=True, dy=60)
-        self.subwinmgr.create_single_window(key, TableUpdateWindow, self, self.util, rows, self.tname, self.columns, data, self.table_data, location)
-
-    def notify_update(self, rows, updates):
-        """
-        rows   : List(int)      : Row number of self.table to update
-        updates: List(List(str)): Row values of self.table to update
-        """
-        updates_conv = [self.get_fields(u[self.pkidx]) for u in updates]
-        for r, u in zip(rows, updates_conv):
-            self.table_data[r] = u
-        self.table.update(self.table_data)
-        [print(f'[Update] {update}') for update in updates]
+        self.subwinmgr.create_single_window(key, TableUpdateWindow, self, self.pack, rows, self.tname, self.columns, data, self.table_data, location)
 
     def delete(self, values):
         rows = sorted(values[self.key_table])
@@ -331,19 +321,38 @@ class TableWindow(BaseWindow):
         data = self.table.get()[row][col]
         print(data)
 
+    # ---> Update tables by external notifications
+
+    def _update_table_on_filter(self, table_data):
+        self.table_data = table_data
+
+    def _update_table_on_db_update(self, rows, updates):
+        """
+        rows   : List(int)      : Row number of self.table to update
+        updates: List(List(str)): Row values of self.table to update
+        """
+        updates_conv = [self.get_fields(u[self.pkidx]) for u in updates]
+        for r, u in zip(rows, updates_conv):
+            self.table_data[r] = u
+        self.table.update(self.table_data)
+        [print(f'[Update] {update}') for update in updates]
+
+    # <--- Update tables by external notifications
+
+
 class TableUpdateWindow(BaseWindow):
-    def __init__(self, parent, util, rows, tname, columns, selected_data, table_data, location):
-        super().__init__(util.winmgr)
+    def __init__(self, parent, pack, rows, tname, columns, selected_data, table_data, location):
+        super().__init__(pack.winmgr)
 
         self.parent = parent
-        self.util = util
+        self.pack = pack
         self.rows = rows
         self.tname = tname
         self.columns = columns
         self.selected_data = selected_data
         self.table_data = table_data
         #
-        self.dbop = self.util.dbop
+        self.dbop = self.pack.dbop
 
         self.prefkey = prefkey = f'_table{tname}change__.'
         self.key_update = f'{prefkey}update'
@@ -376,7 +385,7 @@ class TableUpdateWindow(BaseWindow):
             self.close()
             return
 
-        table = self.util.tableop.get_tables(targets=[self.tname])[0]
+        table = self.pack.tableop.get_tables(targets=[self.tname])[0]
         pk, pkidx = table.pk, table.pkidx
 
         rows = []
@@ -397,5 +406,5 @@ class TableUpdateWindow(BaseWindow):
             updates.append(update)
 
         self.dbop.commit()
-        self.parent.notify_update(rows, updates)
+        self.parent._update_table_on_db_update(rows, updates)
         self.close()

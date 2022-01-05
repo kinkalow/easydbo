@@ -4,16 +4,16 @@ from .common.layout.attribution import Attribution as attr
 from .common.layout.filter import FilterLayout
 
 class QueryResultWindow(BaseWindow):
-    def __init__(self, util, query, columns, table_data, location, use_query_btn=True):
-        super().__init__(util.winmgr)
+    def __init__(self, pack, query, columns, table_data, location, use_query_btn=True):
+        super().__init__(pack.winmgr)
 
-        self.util = util
+        self.pack = pack
         self.query = query
         self.table_data = table_data
 
         length = len(columns[0])
 
-        self.prefkey = prefkey = util.make_timestamp_prefix('result')
+        self.prefkey = prefkey = self.make_prefix_key('result', timestamp=True)
         self.key_querybtn = f'{prefkey}querybutton'
         self.key_querytxt = f'{prefkey}querytext'
         self.key_grepbtn = f'{prefkey}grepbutton'
@@ -21,7 +21,7 @@ class QueryResultWindow(BaseWindow):
         self.key_save = f'{prefkey}csvbutton'
         self.key_table = f'{prefkey}table'
 
-        self.filter_layout = FilterLayout(prefkey, columns, self.key_table, util.dbop, self.query, display_columns=True)
+        self.filter_layout = FilterLayout(prefkey, columns, self.key_table, pack.dbop, self.query, display_columns=True)
 
         if use_query_btn:
             query_btn = [
@@ -68,7 +68,7 @@ class QueryResultWindow(BaseWindow):
         self.filter_layout.set_window(self._window)
         # Subwindows
         subwin_names = [self.key_querybtn]
-        self.subwinmgr = SubWindowManager(util.winmgr, self.window, subwin_names)
+        self.subwinmgr = SubWindowManager(pack.winmgr, self.window, subwin_names)
 
         #frame_id = self.window[self.key_table].Widget.frame_id
         #canvas = self.window[self.key_table].Widget.canvas
@@ -94,14 +94,20 @@ class QueryResultWindow(BaseWindow):
     def add_alias(self, key):
         from .save_as_alias import SaveAsAliasWindow
         location = self.subwinmgr.get_location(widgetkey=key, widgety=True, dy=60)
-        self.subwinmgr.create_single_window(key, SaveAsAliasWindow, self.util, self.query, location)
+        self.subwinmgr.create_single_window(key, SaveAsAliasWindow, self.pack, self.query, location)
+
+    def _to_csv(self, header, data2d, delimiter=','):
+        header_csv = delimiter.join(header)
+        data_csv = '\n'.join([delimiter.join(d1) for d1 in data2d])
+        data_csv = f'{data_csv}\n' if data_csv else data_csv
+        return f'{header_csv}\n{data_csv}' if header else data_csv
 
     def grep(self):
         grep_pat = self.window[self.key_grepinputtxt].get()
         if not grep_pat:
             return
         columns, data = self.get_table_data()
-        data_sp = self.util.to_csv([], data, delimiter=' ')
+        data_sp = self._to_csv([], data, delimiter=' ')
         new_data = []
         try:
             import tempfile
@@ -126,7 +132,7 @@ class QueryResultWindow(BaseWindow):
             self.print(f'All data matched for patten: {grep_pat}')
             return
         # Show grep result on new window
-        win = QueryResultWindow(self.winmgr, self.util, grep_cmd, columns, new_data, use_query_btn=False)
+        win = QueryResultWindow(self.winmgr, self.pack, grep_cmd, columns, new_data, use_query_btn=False)
         self.winmgr.add_window(win)
 
     def save_as_csv(self, path):
