@@ -6,6 +6,7 @@ from .common.command import save_table_data, execute_table_command, make_grep_co
 from easydbo.output.log import Log
 from .candidate import CandidateWindow
 from .common.layout.filter import FilterLayout
+from easydbo.exception import EASYDBO_USER_ERROR
 
 class TableWindow(BaseWindow):
     def __init__(self, tname, pack, location):
@@ -49,9 +50,9 @@ class TableWindow(BaseWindow):
         self.key_rightclick_copypastecell = 'CopyPasteCell'
         self.key_rightclick_printcell = 'PrintCell'
 
-        self.table_data = self.get_table_from_database()
+        table_data = self.get_table_from_database()
         query = f'SELECT * from {tname}'
-        self.filter_layout = FilterLayout(prefkey, self.columns, self.key_table, pack.dbop, query, call_func_on_update=self._update_table_on_filter)
+        self.filter_layout = FilterLayout(prefkey, self.columns, self.key_table, pack.dbop, query)
 
         self.rightclick_commands = [self.key_rightclick_copypastecell, self.key_rightclick_printcell]
         layout = [
@@ -85,7 +86,7 @@ class TableWindow(BaseWindow):
                 )
             ],
             [sg.Table(
-                self.table_data,
+                table_data,
                 **attr.base_table,
                 key=self.key_table,
                 headings=self.columns,
@@ -232,9 +233,9 @@ class TableWindow(BaseWindow):
             return
         self.dbop.commit()
         data_conv = self.get_fields(data[self.pkidx])
-        #self.table.get().insert(0, data_conv)
-        self.table_data.insert(0, data_conv)
-        self.table.update(self.table_data)
+        table_data = self.table.get()
+        table_data.insert(0, data_conv)
+        self.table.update(table_data)
         print(f'[Insert] {data}')
 
     def clear(self):
@@ -245,7 +246,7 @@ class TableWindow(BaseWindow):
         idx_selected_rows = values[self.key_table]
         if not idx_selected_rows:
             return
-        data = self.table_data[idx_selected_rows[0]]
+        data = self.table.get()[idx_selected_rows[0]]
         for k, d in zip(self.key_inputs, data):
             self.window[k].update(d)
 
@@ -253,9 +254,10 @@ class TableWindow(BaseWindow):
         rows = sorted(values[self.key_table])
         if not rows:
             return
-        data = [self.table_data[r] for r in rows]
+        table_data = self.table.get()
+        data = [table_data[r] for r in rows]
         location = self.subwinmgr.get_location(widgetkey=self.key_update, widgety=True, dy=60)
-        self.subwinmgr.create_single_window(key, TableUpdateWindow, self, self.pack, rows, self.tname, self.columns, data, self.table_data, location)
+        self.subwinmgr.create_single_window(key, TableUpdateWindow, self, self.pack, rows, self.tname, self.columns, data, table_data, location)
 
     def delete(self, values):
         rows = sorted(values[self.key_table])
@@ -267,14 +269,15 @@ class TableWindow(BaseWindow):
         #if ret == 'Cancel':
         #    return
         # Delete data
-        data = [self.table_data[r] for r in rows]
+        table_data = self.table.get()
+        data = [table_data[r] for r in rows]
         pkvals = [d[self.pkidx] for d in data]
         ret = self.dbop.delete_by_pk(self.tname, self.pk, pkvals, ignore_error=True)
         if ret.is_error:
             return
         self.dbop.commit()
-        [self.table_data.pop(r - i) for i, r in enumerate(rows)]
-        self.table.update(self.table_data)
+        [table_data.pop(r - i) for i, r in enumerate(rows)]
+        self.table.update(table_data)
         [print(f'[Delete] {list(d)}') for d in data]
 
     def save_as_csv(self, path):
@@ -303,41 +306,41 @@ class TableWindow(BaseWindow):
     def print_table_data(self, rows=[], is_all=False):
         if not rows and not is_all:
             return
-        data = [self.table_data[r] for r in rows] if rows else self.table_data
+        table_data = self.table.get()
+        data = [table_data[r] for r in rows] if rows else table_data
         self.prettyrun(data=data)
 
     # <--- use shell command
 
     def sort(self, idx_column):
-        self.table_data.sort(key=lambda k: k[idx_column], reverse=self.sort_reverse)
-        self.table.update(self.table_data)
+        table_data = self.table.get()
+        table_data.sort(key=lambda k: k[idx_column], reverse=self.sort_reverse)
+        self.table.update(table_data)
         self.sort_reverse = not self.sort_reverse
 
     def copypaste_cell(self, row, col):
-        data = self.table_data[row][col]
+        data = self.table.get()[row][col]
         self.window[self.key_inputs[col]].update(data)
 
     def print_cell(self, row, col):
         data = self.table.get()[row][col]
         print(data)
 
-    # ---> Update tables by external notifications
+    # ---> Update table by external notifications
 
-    def _update_table_on_filter(self, table_data):
-        self.table_data = table_data
-
-    def _update_table_on_db_update(self, rows, updates):
+    def update_table_from_outside(self, rows, updates):
         """
         rows   : List(int)      : Row number of self.table to update
         updates: List(List(str)): Row values of self.table to update
         """
+        table_data = self.table.get()
         updates_conv = [self.get_fields(u[self.pkidx]) for u in updates]
         for r, u in zip(rows, updates_conv):
-            self.table_data[r] = u
-        self.table.update(self.table_data)
+            table_data[r] = u
+        self.table.update(table_data)
         [print(f'[Update] {update}') for update in updates]
 
-    # <--- Update tables by external notifications
+    # <--- Update table by external notifications
 
 
 class TableUpdateWindow(BaseWindow):
@@ -380,8 +383,11 @@ class TableUpdateWindow(BaseWindow):
 
     def update(self):
         # Check
-        if not all([self.selected_data[i] == self.table_data[r] for i, r in enumerate(self.rows)]):
-            print('Error: Could not update due to data changes in table')
+        try:
+            if not all([self.selected_data[i] == self.table_data[r] for i, r in enumerate(self.rows)]):
+                raise EASYDBO_USER_ERROR
+        except (EASYDBO_USER_ERROR, IndexError):
+            print('Error: Cannot update because table has been changed')
             self.close()
             return
 
@@ -406,5 +412,5 @@ class TableUpdateWindow(BaseWindow):
             updates.append(update)
 
         self.dbop.commit()
-        self.parent._update_table_on_db_update(rows, updates)
+        self.parent.update_table_from_outside(rows, updates)
         self.close()
