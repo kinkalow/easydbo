@@ -49,10 +49,10 @@ class AliasWindow(BaseWindow):
         self._window = sg.Window(
             'EasyDBO Alias',
             layout,
-            size=size if size else (1300, 800),
-            resizable=True,
             finalize=True,
             location=location,
+            resizable=True,
+            size=size if size else (1300, 800),
         )
         subwin_names = self.key_aliasnames
         self.subwinmgr = SubWindowManager(pack.winmgr, self.window, subwin_names)

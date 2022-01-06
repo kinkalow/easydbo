@@ -59,10 +59,10 @@ class QueryResultWindow(BaseWindow):
         self._window = sg.Window(
             'EasyDBO QueryResult',
             self.layout,
-            location=location,
-            size=(1300, 800),
-            resizable=True,
             finalize=True,
+            location=location,
+            resizable=True,
+            size=(1300, 800),
         )
         # Pass widnow
         self.filter_layout.set_window(self._window)

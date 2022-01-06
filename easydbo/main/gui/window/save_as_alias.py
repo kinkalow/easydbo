@@ -30,10 +30,10 @@ class SaveAsAliasWindow(BaseWindow):
         self._window = sg.Window(
             'EasyDBO SaveAsAlias',
             self.layout,
-            size=(1300, 500),
-            resizable=True,
             finalize=True,
             location=location,
+            resizable=True,
+            size=(1300, 500),
         )
 
     #def handle(self, event, values):

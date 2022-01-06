@@ -29,7 +29,7 @@ class TableWindow(BaseWindow):
         self.pkauto = table.pkauto
 
         prefkey = self.make_prefix_key(f'table{tname}')
-        #self.key_columns = [f'{prefkey}{c}' for c in self.columns]
+        self.key_description = f'{prefkey}description'
         self.key_inputs = [f'{prefkey}{c}.input' for c in self.columns]
         self.key_candidates = [f'{prefkey}{c}.candidate.{i}' for i, c in enumerate(self.columns)]
         self.key_insert = f'{prefkey}insert'
@@ -50,13 +50,13 @@ class TableWindow(BaseWindow):
         self.key_rightclick_copypastecell = 'CopyPasteCell'
         self.key_rightclick_printcell = 'PrintCell'
 
-        table_data = self.get_table_from_database()
         query = f'SELECT * from {tname}'
         self.filter_layout = FilterLayout(prefkey, self.columns, self.key_table, pack.dbop, query)
 
         self.rightclick_commands = [self.key_rightclick_copypastecell, self.key_rightclick_printcell]
         layout = [
-            [sg.Text(f' {tname} ', **attr.text_table)],
+            [sg.Text(f' {tname} ', **attr.text_table),
+             sg.Button('Description', **attr.base_button_with_color_safety, key=self.key_description)],
             [sg.Text(c, **attr.base_text, key=self.key_candidates[i], size=(20, 1), enable_events=True, background_color='#79799c') for i, c in enumerate(self.columns)],
             [sg.InputText('', **attr.base_inputtext, key=self.key_inputs[i], size=(20, 1)) for i, c in enumerate(self.columns)],
             [
@@ -86,7 +86,7 @@ class TableWindow(BaseWindow):
                 )
             ],
             [sg.Table(
-                table_data,
+                self.get_table_from_database(),
                 **attr.base_table,
                 key=self.key_table,
                 headings=self.columns,
@@ -101,15 +101,15 @@ class TableWindow(BaseWindow):
         self._window = sg.Window(
             f'EasyDBO {tname}',
             layout,
-            size=(1300, 1000),
-            resizable=True,
             finalize=True,
             location=location,
+            resizable=True,
+            size=(1300, 1000),
         )
         # Pass widnow
         self.filter_layout.set_window(self._window)
         # Subwindows
-        subwin_names = self.key_candidates + [self.key_update]
+        subwin_names = [self.key_description] + self.key_candidates + [self.key_update]
         self.subwinmgr = SubWindowManager(pack.winmgr, self.window, subwin_names)
 
         # Table
@@ -119,6 +119,34 @@ class TableWindow(BaseWindow):
         self.window[self.key_table].bind('<Button-3>', f'.{self.key_table_rightclick.split(".")[-1]}')
         self.window[self.key_table].bind('<Double-Button-1>', f'.{self.key_table_doubleclick.split(".")[-1]}')
         #self.window[self.key_greptext].bind('<Enter>', f'.{self.key_shellcmd_enter.split(".")[-1]}')  # Slow
+
+    def _compare_tables(self):
+        rows_gui = self.table.get()
+        rows_db = self.get_table_from_database()
+        if len(rows_gui) != len(rows_db):
+            print(f'[PROGRAM ERROR] rows_gui({len(rows_gui)}) and rows_db({len(rows_db)}) have different line lengths')
+        rows_large, rows_small, name_large, name_small = \
+            (rows_db, rows_gui, 'DB', 'GUI') if len(rows_gui) < len(rows_db) else \
+            (rows_gui, rows_db, 'GUI', 'DB')
+        has_err = False
+        for rl in rows_large[:]:
+            rows_large.pop(0)
+            try:
+                rows_small.pop(rows_small.index(rl))
+            except ValueError:
+                print(f'[PROGRAM ERROR] Only {name_large} has {rl}')
+                has_err = True
+        for rs in rows_small:
+            print(f'[PROGRAM ERROR] Only {name_small} has {rs}')
+            has_err = True
+        return has_err
+
+    def close(self):
+        if __debug__:
+            if self._compare_tables():
+                return
+            print(f'[DEBUG] TableWindow "{self.tname}" finished without any problems')
+        super().close()
 
     def get_table_from_database(self):
         query = f'SELECT * FROM {self.tname};'
@@ -140,7 +168,9 @@ class TableWindow(BaseWindow):
                 #else:
                 #    self.input_row(row - 1)
             return
-        if event in self.key_candidates:
+        if event in self.key_description:
+            self.open_table_infomation_window(event)
+        elif event in self.key_candidates:
             self.open_candidate_window(event)
         elif event == self.key_insert:
             self.insert(values)
@@ -190,6 +220,26 @@ class TableWindow(BaseWindow):
             self.print_table_data(rows=values[self.key_table])
 
     # <--- handle
+
+    def open_table_infomation_window(self, key):
+        ret = self.dbop.execute(f'DESCRIBE {self.tname}')
+        if ret.is_error:
+            Log.fatal_error(f'Bad query: {self.tname}')
+        des_cols = self.dbop.get_current_columns()  # des_cols   : ['Field', 'Type'       , 'Null', 'Key', 'Default', 'Extra']
+        des_data = self.dbop.fetchall()             # des_data[0]: ('id'   , 'varchar(10)', 'NO'  , 'PRI', None     , '')
+        try:
+            idx = des_cols.index('Field')
+            columns = [d[idx] for d in des_data] + ['HEADING']
+            data = []
+            for i, c in enumerate(des_cols):
+                if i == idx:
+                    continue
+                data.append([d[i] for d in des_data] + [c])
+        except Exception:
+            columns = des_cols
+            data = des_data
+        location = self.subwinmgr.get_location(widgetkey=key, widgety=True, dy=150)
+        self.subwinmgr.create_single_window(key, TableDescriptionWindow, self.pack, self.tname, columns, data, location)
 
     def open_candidate_window(self, key):
         idx = int(key.split('.')[-1])
@@ -343,6 +393,40 @@ class TableWindow(BaseWindow):
     # <--- Update table by external notifications
 
 
+class TableDescriptionWindow(BaseWindow):
+    def __init__(self, pack, tname, columns, data, location):
+        super().__init__(pack.winmgr)
+
+        layout = [
+            [sg.Table(
+                data,
+                **attr.base_table,
+                #col_widths=[20 for _ in range(len(columns))],
+                enable_click_events=True,
+                expand_x=True,
+                expand_y=True,
+                headings=columns,
+                hide_vertical_scroll=True,
+                justification='left',
+            )],
+        ]
+
+        self._window = sg.Window(
+            f'EasyDBO {tname} description',
+            layout,
+            finalize=True,
+            keep_on_top=True,
+            location=location,
+            margins=(0, 0),
+            no_titlebar=True,
+            resizable=True,
+            size=(1500, 250),
+        )
+
+    def handle(self, event, values):
+        self.close()
+
+
 class TableUpdateWindow(BaseWindow):
     def __init__(self, parent, pack, rows, tname, columns, selected_data, table_data, location):
         super().__init__(pack.winmgr)
@@ -357,7 +441,7 @@ class TableUpdateWindow(BaseWindow):
         #
         self.dbop = self.pack.dbop
 
-        self.prefkey = prefkey = f'_table{tname}change__.'
+        prefkey = self.make_prefix_key(f'table{tname}update')
         self.key_update = f'{prefkey}update'
         self.key_inputs = [[f'{prefkey}{r}.{c}.input' for c in columns] for r in rows]
 
@@ -371,10 +455,12 @@ class TableUpdateWindow(BaseWindow):
         self._window = sg.Window(
             f'EasyDBO {tname} Update',
             layout,
-            size=(1300, 400),
-            resizable=True,
             finalize=True,
+            keep_on_top=True,
             location=location,
+            modal=True,
+            resizable=True,
+            size=(1300, 400),
         )
 
     def handle(self, event, values):

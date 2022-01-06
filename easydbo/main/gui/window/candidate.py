@@ -37,11 +37,12 @@ class CandidateWindow(BaseWindow):
         self._window = sg.Window(
             'EasyDBO Candidate',
             layout,
-            size=(1300, 800),
-            resizable=True,
             finalize=True,
-            no_titlebar=True,
+            keep_on_top=True,
             location=location,
+            no_titlebar=True,
+            resizable=True,
+            size=(1300, 800),
         )
 
         self.window[self.key_input].bind('<Return>', f'.{self.key_input_return.split(".")[-1]}')

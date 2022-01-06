@@ -25,11 +25,6 @@ class TableOperator():
 
     # Get --->
 
-    def get_same_column_names(self):
-        col2d = self.get_columns(full=True)
-        col1d = [c for c1d in col2d for c in c1d]
-        return sorted([c for c in set(col1d) if col1d.count(c) > 1])
-
     def get_columns(self, targets=None, full=False):
         if targets is None:
             return [t.fullcolumns for t in self.tables] if full else \
@@ -44,6 +39,11 @@ class TableOperator():
                 else:
                     Log.error(f'"{tgt}" is not table name')
             return cols
+
+    def get_same_column_names(self):
+        col2d = self.get_columns(full=True)
+        col1d = [c for c1d in col2d for c in c1d]
+        return sorted([c for c in set(col1d) if col1d.count(c) > 1])
 
     def get_tables(self, targets=[]):
         if targets:
@@ -90,15 +90,17 @@ class Table:
     def __init__(self, name, pkauto, columns_info):
         self.name = name
         self.pkauto = pkauto
-        self.fullcolumns, self.types, self.attrs = self._split_colinfo(columns_info)
+        self.fullcolumns, self.fulltypes, self.fullattrs = self._split_colinfo(columns_info)
         #
-        self.pkidx, self.pk = self._get_pk(name, self.fullcolumns, self.attrs)
+        self.pkidx, self.pk = self._get_pk(name, self.fullcolumns, self.fullattrs)
         if pkauto:
             self.columns = [c for i, c in enumerate(self.fullcolumns) if i != self.pkidx]
-            self.types = [c for i, c in enumerate(self.types) if i != self.pkidx]
-            self.attrs = [c for i, c in enumerate(self.attrs) if i != self.pkidx]
+            self.types = [c for i, c in enumerate(self.fulltypes) if i != self.pkidx]
+            self.attrs = [c for i, c in enumerate(self.fullattrs) if i != self.pkidx]
         else:
             self.columns = self.fullcolumns
+            self.types = self.fulltypes
+            self.attrs = self.fullattrs
         #self.auto_pk = self._get_auto_pk_info(self.pkidx, self.pk)
         #self.attrs = self._add_pk_to_attr(self.pkidx, self.attrs)
         self.attr_null = self._attr_null(self.attrs)

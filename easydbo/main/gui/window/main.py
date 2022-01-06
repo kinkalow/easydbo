@@ -34,10 +34,10 @@ class MainWindow(BaseWindow):
         self._window = sg.Window(
             'EasyDBO Main',
             layout,
-            location=(5000, 200),
-            size=(1300, 800),
-            resizable=True,
             finalize=True,
+            location=(5000, 200),
+            resizable=True,
+            size=(1300, 800),
         )
         # Subwindows
         subwin_names = self.key_tables + [self.key_alias]
