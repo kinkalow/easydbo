@@ -1,12 +1,11 @@
 import PySimpleGUI as sg
-from .base import BaseWindow, SubWindowManager
+from .base import BaseWindow
 from .common.layout.attribution import Attribution as attr
 from .common.layout.filter import FilterLayout
+from .manager import SubWindow
 
 class QueryResultWindow(BaseWindow):
     def __init__(self, pack, query, columns, table_data, location, use_query_btn=True):
-        super().__init__(pack.winmgr)
-
         self.pack = pack
         self.query = query
         self.table_data = table_data
@@ -68,7 +67,7 @@ class QueryResultWindow(BaseWindow):
         self.filter_layout.set_window(self._window)
         # Subwindows
         subwin_names = [self.key_querybtn]
-        self.subwinmgr = SubWindowManager(pack.winmgr, self.window, subwin_names)
+        self.subwin = SubWindow(self.window, subwin_names)
 
         #frame_id = self.window[self.key_table].Widget.frame_id
         #canvas = self.window[self.key_table].Widget.canvas
@@ -93,12 +92,12 @@ class QueryResultWindow(BaseWindow):
 
     def add_alias(self, key):
         from .save_as_alias import SaveAsAliasWindow
-        location = self.subwinmgr.get_location(widgetkey=key, widgety=True, dy=60)
-        self.subwinmgr.create_single_window(key, SaveAsAliasWindow, self.pack, self.query, location)
+        location = self.subwin.get_location(widgetkey=key, widgety=True, dy=60)
+        self.subwin.create_unique(key, SaveAsAliasWindow, self.pack, self.query, location)
 
     def _to_csv(self, header, data2d, delimiter=','):
         header_csv = delimiter.join(header)
-        data_csv = '\n'.join([delimiter.join(d1) for d1 in data2d])
+        data_csv = '\n'.join([delimiter.join(str(d1)) for d1 in data2d])
         data_csv = f'{data_csv}\n' if data_csv else data_csv
         return f'{header_csv}\n{data_csv}' if header else data_csv
 
@@ -121,19 +120,19 @@ class QueryResultWindow(BaseWindow):
             out = p.communicate()[0]
             grep_num = out.decode().rstrip('\n').split('\n')
             if grep_num == ['']:
-                self.print(f'No matching patten: {grep_pat}')
+                print(f'No matching patten: {grep_pat}')
                 return
             new_data = [data[int(i) - 1] for i in grep_num]
         except Exception as e:
-            self.print(e)
+            print(e)
             fp.close()
             return
         if data == new_data:
-            self.print(f'All data matched for patten: {grep_pat}')
+            print(f'All data matched for patten: {grep_pat}')
             return
         # Show grep result on new window
-        win = QueryResultWindow(self.winmgr, self.pack, grep_cmd, columns, new_data, use_query_btn=False)
-        self.winmgr.add_window(win)
+        location = self.subwin.get_location()
+        self.subwin.create_multiples(QueryResultWindow, self.pack, grep_cmd, columns, new_data, location, use_query_btn=False)
 
     def save_as_csv(self, path):
         from .common.command import save_table_data

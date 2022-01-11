@@ -1,12 +1,12 @@
 import PySimpleGUI as sg
-from .common.layout.attribution import Attribution as attr
-from .base import BaseWindow, SubWindowManager
 from easydbo.init.alias import AliasLoader
+from .base import BaseWindow
+from .common.layout.attribution import Attribution as attr
 from .common.sql import create_sql_result
+from .manager import SubWindow
 
 class AliasWindow(BaseWindow):
     def __init__(self, pack, location, parent_alias_method, size=None):
-        super().__init__(pack.winmgr)
         self.pack = pack
         self.parent_alias_method = parent_alias_method
 
@@ -55,7 +55,7 @@ class AliasWindow(BaseWindow):
             size=size if size else (1300, 800),
         )
         subwin_names = self.key_aliasnames
-        self.subwinmgr = SubWindowManager(pack.winmgr, self.window, subwin_names)
+        self.subwin = SubWindow(self.window, subwin_names)
 
         frame_id = self.window[self.key_scroll].Widget.frame_id
         canvas = self.window[self.key_scroll].Widget.canvas
@@ -75,11 +75,11 @@ class AliasWindow(BaseWindow):
         [self.window[k].Update(v) for k, v in zip(self.key_inputs, self.sqls)]
 
     def reload(self):
-        location = self.subwinmgr.get_location()
+        location = self.subwin.get_location()
         size = self.window.Size
         self.close()
         self.parent_alias_method(location=location, size=size)
 
     def query(self, key, query):
-        location = self.subwinmgr.get_location(widgetkey=key, widgetx=True, widgety=True, dy=60)
-        create_sql_result(query, self.pack, self.subwinmgr, location)
+        location = self.subwin.get_location(widgetkey=key, widgetx=True, widgety=True, dy=60)
+        create_sql_result(query, self.pack, self.subwin, location)

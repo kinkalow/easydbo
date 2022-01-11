@@ -4,8 +4,6 @@ from .common.layout.attribution import Attribution as attr
 
 class SaveAsAliasWindow(BaseWindow):
     def __init__(self, pack, query, location):
-        super().__init__(pack.winmgr)
-
         # Layout
         prefkey = self.make_prefix_key('saveasalias', timestamp=True)
         self.key_save = f'{prefkey}save'

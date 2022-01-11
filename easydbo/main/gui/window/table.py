@@ -1,17 +1,17 @@
 import PySimpleGUI as sg
 import re
-from .base import BaseWindow, SubWindowManager
-from .common.layout.attribution import Attribution as attr
-from .common.command import save_table_data, execute_table_command, make_grep_command
-from easydbo.output.log import Log
-from .candidate import CandidateWindow
-from .common.layout.filter import FilterLayout
 from easydbo.exception import EASYDBO_USER_ERROR
+from easydbo.output.log import Log
+from .base import BaseWindow
+from .candidate import CandidateWindow
+from .common.command import save_table_data, execute_table_command, make_grep_command
+from .common.layout.attribution import Attribution as attr
+from .common.layout.filter import FilterLayout
+from .manager import SubWindow
+
 
 class TableWindow(BaseWindow):
     def __init__(self, tname, pack, location):
-        super().__init__(pack.winmgr)
-
         self.tname = tname
         self.pack = pack
         #
@@ -110,7 +110,7 @@ class TableWindow(BaseWindow):
         self.filter_layout.set_window(self._window)
         # Subwindows
         subwin_names = [self.key_description] + self.key_candidates + [self.key_update]
-        self.subwinmgr = SubWindowManager(pack.winmgr, self.window, subwin_names)
+        self.subwin = SubWindow(self.window, subwin_names)
 
         # Table
         self.table = self.window[self.key_table]
@@ -238,8 +238,8 @@ class TableWindow(BaseWindow):
         except Exception:
             columns = des_cols
             data = des_data
-        location = self.subwinmgr.get_location(widgetkey=key, widgety=True, dy=150)
-        self.subwinmgr.create_single_window(key, TableDescriptionWindow, self.pack, self.tname, columns, data, location)
+        location = self.subwin.get_location(widgetkey=key, widgety=True, dy=150)
+        self.subwin.create_unique(key, TableDescriptionWindow, self.pack, self.tname, columns, data, location)
 
     def open_candidate_window(self, key):
         idx = int(key.split('.')[-1])
@@ -253,8 +253,8 @@ class TableWindow(BaseWindow):
         data = [d[0] for d in self.dbop.fetchall()]
         #-----------------------------------------------
         element = self.window[self.key_inputs[idx]]
-        location = self.subwinmgr.get_location(widgetkey=self.key_inputs[idx], widgetx=True, widgety=True, dy=30)
-        self.subwinmgr.create_single_window(key, CandidateWindow, data, self.pack, element, location)
+        location = self.subwin.get_location(widgetkey=self.key_inputs[idx], widgetx=True, widgety=True, dy=30)
+        self.subwin.create_unique(key, CandidateWindow, data, self.pack, element, location)
 
     def get_fields(self, primary_value):
         # FIXME: Codes should be rewritten to type conversions rather than query database
@@ -306,15 +306,15 @@ class TableWindow(BaseWindow):
             return
         table_data = self.table.get()
         data = [table_data[r] for r in rows]
-        location = self.subwinmgr.get_location(widgetkey=self.key_update, widgety=True, dy=60)
-        self.subwinmgr.create_single_window(key, TableUpdateWindow, self, self.pack, rows, self.tname, self.columns, data, table_data, location)
+        location = self.subwin.get_location(widgetkey=self.key_update, widgety=True, dy=60)
+        self.subwin.create_unique(key, TableUpdateWindow, self, self.pack, rows, self.tname, self.columns, data, table_data, location)
 
     def delete(self, values):
         rows = sorted(values[self.key_table])
         if not rows:
             return
         # Confirm deletion
-        #loc = self.subwinmgr.get_location(widgetkey=self.key_delete, widgetx=True, widgety=True)
+        #loc = self.subwin.get_location(widgetkey=self.key_delete, widgetx=True, widgety=True)
         #ret = sg.popup_ok_cancel('Delete selected rows?', keep_on_top=True, location=loc)
         #if ret == 'Cancel':
         #    return
@@ -395,8 +395,6 @@ class TableWindow(BaseWindow):
 
 class TableDescriptionWindow(BaseWindow):
     def __init__(self, pack, tname, columns, data, location):
-        super().__init__(pack.winmgr)
-
         layout = [
             [sg.Table(
                 data,
@@ -429,8 +427,6 @@ class TableDescriptionWindow(BaseWindow):
 
 class TableUpdateWindow(BaseWindow):
     def __init__(self, parent, pack, rows, tname, columns, selected_data, table_data, location):
-        super().__init__(pack.winmgr)
-
         self.parent = parent
         self.pack = pack
         self.rows = rows

@@ -1,17 +1,17 @@
-import re
 import functools
 import PySimpleGUI as sg
+import re
 from easydbo.exception import EASYDBO_GOTO_LOOP, EASYDBO_USER_ERROR
-from .base import BaseWindow, SubWindowManager
 from .alias import AliasWindow
-from .table import TableWindow
+from .base import BaseWindow
 from .common.layout.attribution import Attribution as attr
 from .common.sql import create_sql_result
+from .table import TableWindow
+from .manager import SubWindow
 
 
 class MainWindow(BaseWindow):
     def __init__(self, pack):
-        super().__init__(pack.winmgr)
         self.pack = pack
         tnames = pack.tableop.get_tnames()
 
@@ -41,9 +41,9 @@ class MainWindow(BaseWindow):
         )
         # Subwindows
         subwin_names = self.key_tables + [self.key_alias]
-        self.subwinmgr = SubWindowManager(pack.winmgr, self.window, subwin_names)
+        self.subwin = SubWindow(self.window, subwin_names)
         # Add window objects to fulljoin layout
-        self.fulljoin.set_window(self.window, self.subwinmgr)
+        self.fulljoin.set_window(self.window, self.subwin)
 
     def handle(self, event, values):
         if event in self.key_tables:
@@ -57,16 +57,16 @@ class MainWindow(BaseWindow):
 
     def open_table(self, key):
         tname = key.split('.')[-1]
-        location = self.subwinmgr.get_location(dy=80)
-        self.subwinmgr.create_single_window(key, TableWindow, tname, self.pack, location)
+        location = self.subwin.get_location(dy=80)
+        self.subwin.create_unique(key, TableWindow, tname, self.pack, location)
 
     def alias(self, key, location=None, size=None):
         # NOTE: This method is also invoked in AliasWindow class
         #     : location and size arugements are defined in AliasWindow class
         if not location:
-            location = self.subwinmgr.get_location(widgetkey=self.key_alias, widgety=True, dy=60)
+            location = self.subwin.get_location(widgetkey=self.key_alias, widgety=True, dy=60)
         alias_method = functools.partial(self.alias, key)
-        self.subwinmgr.create_single_window(key, AliasWindow, self.pack, location, alias_method, size=size)
+        self.subwin.create_unique(key, AliasWindow, self.pack, location, alias_method, size=size)
 
 
 class FullJoinLayout():
@@ -163,9 +163,9 @@ class FullJoinLayout():
     #    [window[k].bind('<Leave>', f'{k}.focusout-') for k1 in self.key_cols_cbs for k in k1]
     #    [window[k].bind('<Leave>', f'{k}.focusout-') for k1 in self.key_cols_conds for k in k1]
 
-    def set_window(self, window, subwinmgr):
+    def set_window(self, window, subwin):
         self.window = window
-        self.subwinmgr = subwinmgr
+        self.subwin = subwin
 
     def handle(self, event, values):
         values_rmv = {k: v for k, v in values.items()
@@ -212,8 +212,8 @@ class FullJoinLayout():
 
     def show(self, sql_select, sql_from, sql_where, sql_others=''):
         query = f'{sql_select} {sql_from} {sql_where} {sql_others}'.rstrip() + ';'
-        location = self.subwinmgr.get_location(dy=30)
-        create_sql_result(query, self.pack, self.subwinmgr, location)
+        location = self.subwin.get_location(dy=30)
+        create_sql_result(query, self.pack, self.subwin, location)
 
     def check_checkboxes(self, values, true_or_false):
         for k in values.keys():

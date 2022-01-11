@@ -1,12 +1,10 @@
-import re
 import PySimpleGUI as sg
+import re
 from .base import BaseWindow
 from .common.layout.attribution import Attribution as attr
 
 class CandidateWindow(BaseWindow):
     def __init__(self, data, pack, parent_element, location):
-        super().__init__(pack.winmgr)
-
         self.data = sorted(set([str(d) for d in data]))
         self.data = [[d] for d in sorted(set([str(d) for d in data]))]
         self.parent_element = parent_element
