@@ -7,7 +7,7 @@ from .candidate import CandidateWindow
 from .common.command import save_table_data, execute_table_command, make_grep_command
 from .common.layout.attribution import Attribution as attr
 from .common.layout.filter import FilterLayout
-from .manager import SubWindow
+from ..manager import SubWindow
 
 
 class TableWindow(BaseWindow):

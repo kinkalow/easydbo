@@ -7,7 +7,7 @@ from .base import BaseWindow
 from .common.layout.attribution import Attribution as attr
 from .common.sql import create_sql_result
 from .table import TableWindow
-from .manager import SubWindow
+from ..manager import SubWindow
 
 
 class MainWindow(BaseWindow):

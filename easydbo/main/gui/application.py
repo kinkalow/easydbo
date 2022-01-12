@@ -1,8 +1,8 @@
 import sys
 import PySimpleGUI as sg
 from easydbo.exception import EASYDBO_GOTO_LOOP
-from .main import MainWindow
 from .manager import WindowManager
+from .window.main import MainWindow
 
 
 class Pack:

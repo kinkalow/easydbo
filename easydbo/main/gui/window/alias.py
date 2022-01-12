@@ -3,7 +3,7 @@ from easydbo.init.alias import AliasLoader
 from .base import BaseWindow
 from .common.layout.attribution import Attribution as attr
 from .common.sql import create_sql_result
-from .manager import SubWindow
+from ..manager import SubWindow
 
 class AliasWindow(BaseWindow):
     def __init__(self, pack, location, parent_alias_method, size=None):

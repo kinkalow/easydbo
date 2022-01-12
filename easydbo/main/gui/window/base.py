@@ -1,5 +1,5 @@
 from datetime import datetime
-from .manager import WindowManager
+from ..manager import WindowManager
 
 
 class BaseWindow:

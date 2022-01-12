@@ -1,18 +1,22 @@
 class WindowManager():
-    windows = {}
+    _windows = {}
 
     @classmethod
     def add(self, winobj):
-        self.windows.update({winobj.window: winobj})
+        self._windows.update({winobj.window: winobj})
 
     @classmethod
     def remove(self, window):
-        self.windows.pop(window)
+        self._windows.pop(window)
 
     @classmethod
     def close(self):
-        [w.close() for w in list(self.windows.values()) if w.window]
-        assert(len(self.windows) == 0)
+        [w.close() for w in list(self._windows.values()) if w.window]
+        assert(len(self._windows) == 0)
+
+    @property
+    def windows(self):
+        return self._windows
 
 
 class SubWindow:

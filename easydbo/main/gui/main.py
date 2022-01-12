@@ -1,8 +1,8 @@
 from easydbo.init.config import ConfigLoader
 from easydbo.init.table import TableLoader
 from easydbo.database.operation import DatabaseOperation
-from easydbo.main.gui.window.application import Application
 from easydbo.init.alias import AliasLoader
+from .application import Application
 
 
 def main():
