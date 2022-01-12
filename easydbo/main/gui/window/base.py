@@ -3,6 +3,11 @@ from ..manager import WindowManager
 
 
 class BaseWindow:
+    '''
+    Classes that inherit from BaseWindow must set sg.Window instance to self._window
+    handle(...) is abstract method
+    '''
+
     def close(self):
         WindowManager().remove(self.window)
         self.window.close()

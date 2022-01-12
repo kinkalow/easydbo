@@ -34,12 +34,13 @@ class TableWindow(BaseWindow):
         self.key_candidates = [f'{prefkey}{c}.candidate.{i}' for i, c in enumerate(self.columns)]
         self.key_insert = f'{prefkey}insert'
         self.key_clear = f'{prefkey}clear'
-        self.key_save = f'{prefkey}save'
+        self.key_saveall = f'{prefkey}saveall'
         self.key_printall = f'{prefkey}printall'
         self.key_greprun = f'{prefkey}grepbtn'
         self.key_greptext = f'{prefkey}greptext'
-        self.key_copypaste = f'{prefkey}copypaste'
-        self.key_printselect = f'{prefkey}printselect'
+        self.key_copypasterow = f'{prefkey}copypasterow'
+        self.key_saveselected = f'{prefkey}saveselected'
+        self.key_printselected = f'{prefkey}printselected'
         #self.key_shellcmd_enter = f'{self.key_greptext}.enter'  # bind
         self.key_update = f'{prefkey}update'
         self.key_delete = f'{prefkey}delete'
@@ -47,13 +48,34 @@ class TableWindow(BaseWindow):
         self.key_table_rightclick = f'{self.key_table}.rightclick'  # bind
         self.key_table_doubleclick = f'{self.key_table}.doubleclick'  # bind
         #
-        self.key_rightclick_copypastecell = 'CopyPasteCell'
-        self.key_rightclick_printcell = 'PrintCell'
+        self.key_rightclick_copypastecell = '[Cell] CopyPaste'
+        self.key_rightclick_printcell = '[Cell] Print'
+        self.key_rightclick_copypasterow = '[Row] CopyPaste'
+        self.key_rightclick_printrow = '[Row] Print'
+        self.key_rightclick_copypasteselected = '[Selected] CopyPaste'
+        self.key_rightclick_printselected = '[Selected] Print'
+        self.key_rightclick_saveselected = '[Selected] Save'
+        self.key_rightclick_printall = '[All] Print'
+        self.key_rightclick_saveall = '[All] Save'
 
         query = f'SELECT * from {tname}'
         self.filter_layout = FilterLayout(prefkey, self.columns, self.key_table, pack.dbop, query)
 
-        self.rightclick_commands = [self.key_rightclick_copypastecell, self.key_rightclick_printcell]
+        self.rightclick_commands = [
+            self.key_rightclick_copypastecell,
+            self.key_rightclick_printcell,
+            '-' * 30,
+            self.key_rightclick_copypasterow,
+            self.key_rightclick_printrow,
+            '-' * 30,
+            self.key_rightclick_copypasteselected,
+            self.key_rightclick_printselected,
+            self.key_rightclick_saveselected,
+            '-' * 30,
+            self.key_rightclick_printall,
+            self.key_rightclick_saveall,
+        ]
+
         layout = [
             [sg.Text(f' {tname} ', **attr.text_table),
              sg.Button('Description', **attr.base_button_with_color_safety, key=self.key_description)],
@@ -66,8 +88,7 @@ class TableWindow(BaseWindow):
             self.filter_layout.layout,
             [
                 sg.Frame('All', [[
-                    sg.InputText(**attr.base_inputtext, key=self.key_save, visible=False, enable_events=True),
-                    sg.FileSaveAs('Save', **attr.base_button_with_color_safety, file_types=(('CSV', '.csv'), )),
+                    sg.Button('Save', **attr.base_button_with_color_safety, key=self.key_saveall),
                     sg.Button('Print', **attr.base_button_with_color_safety, key=self.key_printall),
                     sg.Button('GrepRun', **attr.base_button_with_color_safety, key=self.key_greprun),
                     sg.InputText('', **attr.base_inputtext, key=self.key_greptext),
@@ -77,8 +98,9 @@ class TableWindow(BaseWindow):
             ],
             [
                 sg.Frame('Selected', [[
-                    sg.Button('CopyPaste', **attr.base_button_with_color_safety, key=self.key_copypaste),
-                    sg.Button('Print', **attr.base_button_with_color_safety, key=self.key_printselect),
+                    sg.Button('CopyPaste', **attr.base_button_with_color_safety, key=self.key_copypasterow),
+                    sg.Button('Save', **attr.base_button_with_color_safety, key=self.key_saveselected),
+                    sg.Button('Print', **attr.base_button_with_color_safety, key=self.key_printselected),
                     sg.Button('Update', **attr.base_button_with_color_warning, key=self.key_update),
                     sg.Button('Delete', **attr.base_button_with_color_danger, key=self.key_delete),
                 ]],
@@ -178,18 +200,21 @@ class TableWindow(BaseWindow):
             self.clear()
         elif event.startswith(self.filter_layout.prefkey):
             self.filter_layout.handle(event, values)
-        elif event == self.key_save:
-            path = values[self.key_save]
-            self.save_as_csv(path)
+        elif event == self.key_saveall:
+            self.save_as_csv(is_all=True)
         elif event == self.key_printall:
-            self.print_table_data(is_all=True)
+            self.print_rows(is_all=True)
         #elif event == self.key_greprun or event == self.key_shellcmd_enter:
         elif event == self.key_greprun:
             self.greprun(values[self.key_greptext])
-        elif event == self.key_copypaste:
-            self.copypaste(values)
-        elif event == self.key_printselect:
-            self.print_table_data(rows=values[self.key_table])
+        elif event == self.key_copypasterow:
+            rows = values[self.key_table]
+            if rows:
+                self.copypaste_row(rows[0])
+        elif event == self.key_saveselected:
+            self.save_as_csv(rows=values[self.key_table])
+        elif event == self.key_printselected:
+            self.print_rows(rows=values[self.key_table])
         elif event == self.key_update:
             self.update(event, values)
         elif event == self.key_delete:
@@ -212,12 +237,32 @@ class TableWindow(BaseWindow):
             row, col = self.rightclick_location[0] - 1, self.rightclick_location[1] - 1
             if row == -1:  # Ignore header line
                 return
+            # Cell
             if event == self.key_rightclick_copypastecell:
                 self.copypaste_cell(row, col)
             elif event == self.key_rightclick_printcell:
                 self.print_cell(row, col)
+            # Row
+            elif event == self.key_rightclick_copypasterow:
+                self.copypaste_row(row)
+            elif event == self.key_rightclick_printrow:
+                self.print_rows(rows=[row])
+            # Selected
+            elif event == self.key_rightclick_copypasteselected:
+                rows = values[self.key_table]
+                if rows:
+                    self.copypaste_row(rows[0])
+            elif event == self.key_rightclick_printselected:
+                self.print_rows(rows=values[self.key_table])
+            elif event == self.key_rightclick_saveselected:
+                self.save_as_csv(rows=values[self.key_table])
+            # All
+            elif event == self.key_rightclick_printall:
+                self.print_rows(is_all=True)
+            elif event == self.key_rightclick_saveall:
+                self.save_as_csv(is_all=True)
         elif event == self.key_table_doubleclick:
-            self.print_table_data(rows=values[self.key_table])
+            self.print_rows(rows=values[self.key_table])
 
     # <--- handle
 
@@ -260,7 +305,7 @@ class TableWindow(BaseWindow):
         # FIXME: Codes should be rewritten to type conversions rather than query database
         column_str = ", ".join(self.columns)
         column_name = self.columns[self.pkidx]
-        query = f'SELECT {column_str} from {self.tname} WHERE {column_name} = {primary_value}'
+        query = f'SELECT {column_str} from {self.tname} WHERE {column_name} = "{primary_value}"'
         ret = self.dbop.execute(query)
         if ret.is_error:
             Log.fatal_error(f'Bad querry: {query}')
@@ -292,11 +337,8 @@ class TableWindow(BaseWindow):
         for k in self.key_inputs:
             self.window[k].update('')
 
-    def copypaste(self, values):
-        idx_selected_rows = values[self.key_table]
-        if not idx_selected_rows:
-            return
-        data = self.table.get()[idx_selected_rows[0]]
+    def copypaste_row(self, row):
+        data = self.table.get()[row]
         for k, d in zip(self.key_inputs, data):
             self.window[k].update(d)
 
@@ -330,8 +372,16 @@ class TableWindow(BaseWindow):
         self.table.update(table_data)
         [print(f'[Delete] {list(d)}') for d in data]
 
-    def save_as_csv(self, path):
-        save_table_data(path, self.table.ColumnHeadings, self.table.get())
+    def save_as_csv(self, rows=[], is_all=False):
+        if not rows and not is_all:
+            return
+        path = sg.popup_get_file('Save', save_as=True, no_window=True, file_types=(('CSV', '.csv'),))
+        if not path:
+            return
+        data = self.table.get()
+        if not is_all:
+            data = [data[r] for r in rows]
+        save_table_data(path, self.table.ColumnHeadings, data)
 
     # ---> use shell command
 
@@ -353,11 +403,12 @@ class TableWindow(BaseWindow):
         cmd = f'column -t -s {delimiter} {{path}}'
         execute_table_command(cmd, columns, data, delimiter, show_command)
 
-    def print_table_data(self, rows=[], is_all=False):
+    def print_rows(self, rows=[], is_all=False):
         if not rows and not is_all:
             return
-        table_data = self.table.get()
-        data = [table_data[r] for r in rows] if rows else table_data
+        data = self.table.get()
+        if not is_all:
+            data = [data[r] for r in rows]
         self.prettyrun(data=data)
 
     # <--- use shell command
