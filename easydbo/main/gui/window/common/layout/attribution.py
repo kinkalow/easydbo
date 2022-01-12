@@ -4,6 +4,9 @@ class Attribution:
     color_safety = '#22348c'
     color_warning = '#b0ac2e'
     color_danger = '#e83838'
+    #
+    color_required = '#bd5151'
+    color_optional = '#515abd'
 
     base_button = {'font': ('', 12)}
     base_checkbox = {'font': ('', 12)}

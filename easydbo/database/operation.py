@@ -36,6 +36,14 @@ SELECT Min(_EASYDBO_TABLE.{column})+1 AS min_num FROM (SELECT {column} FROM {tab
         self.execute(query)
         return self.fetchall()[0][0]
 
+    def get_description(self, table):
+        ret = self.execute(f'DESCRIBE {table};')
+        if ret.is_error:
+            Log.fatal_error(f'Bad query: {self.get_current_query()}')
+        cols = self.get_current_columns()  # cols   : ['Field', 'Type'       , 'Null', 'Key', 'Default', 'Extra']
+        data = self.fetchall()             # data[0]: ('id'   , 'varchar(10)', 'NO'  , 'PRI', None     , '')
+        return cols, data
+
     def get_key_val_cond(self, keys, vlaues):
         return ' OR '.join([
             '(' + ' AND '.join([f'{k}="{v}"' for k, v in zip(keys, val)]) + ')'

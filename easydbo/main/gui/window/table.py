@@ -61,6 +61,8 @@ class TableWindow(BaseWindow):
         query = f'SELECT * from {tname}'
         self.filter_layout = FilterLayout(prefkey, self.columns, self.key_table, pack.dbop, query)
 
+        self._desc_col_data, text_colors = self._get_description_and_textcolor(self.dbop, self.tname, len(self.columns))
+
         self.rightclick_commands = [
             self.key_rightclick_copypastecell,
             self.key_rightclick_printcell,
@@ -79,7 +81,9 @@ class TableWindow(BaseWindow):
         layout = [
             [sg.Text(f' {tname} ', **attr.text_table),
              sg.Button('Description', **attr.base_button_with_color_safety, key=self.key_description)],
-            [sg.Text(c, **attr.base_text, key=self.key_candidates[i], size=(20, 1), enable_events=True, background_color='#79799c') for i, c in enumerate(self.columns)],
+            [sg.Text(c, **attr.base_text, key=self.key_candidates[i], size=(20, 1), enable_events=True,
+                     background_color=text_colors[i]) for i, c in enumerate(self.columns)],
+            #text_color='black', background_color=text_colors[i]) for i, c in enumerate(self.columns)],
             [sg.InputText('', **attr.base_inputtext, key=self.key_inputs[i], size=(20, 1)) for i, c in enumerate(self.columns)],
             [
                 sg.Button('Insert', **attr.base_button_with_color_warning, key=self.key_insert),
@@ -141,6 +145,34 @@ class TableWindow(BaseWindow):
         self.window[self.key_table].bind('<Button-3>', f'.{self.key_table_rightclick.split(".")[-1]}')
         self.window[self.key_table].bind('<Double-Button-1>', f'.{self.key_table_doubleclick.split(".")[-1]}')
         #self.window[self.key_greptext].bind('<Enter>', f'.{self.key_shellcmd_enter.split(".")[-1]}')  # Slow
+
+    def _get_description_and_textcolor(self, dbop, tname, num_columns):
+        # Description
+        des_cols, des_data = dbop.get_description(tname)
+        # Convert for readability
+        try:
+            idx = des_cols.index('Field')
+            columns = [d[idx] for d in des_data] + ['HEADING']
+            data = []
+            for i, c in enumerate(des_cols):
+                if i == idx:
+                    continue
+                data.append([d[i] for d in des_data] + [c])
+        except Exception:
+            columns = des_cols
+            data = des_data
+        # Text background color
+        try:
+            i_null = des_cols.index('Null')
+            i_extra = des_cols.index('Extra')
+            nulls = [d[i_null] for d in des_data]
+            extra = [d[i_extra] for d in des_data]
+            colors = [attr.color_optional if n == 'YES' or e.find('auto_increment') != -1 else
+                      attr.color_required for n, e in zip(nulls, extra)]
+        except Exception:
+            colors = [None] * num_columns
+        # Return
+        return (columns, data), colors
 
     def _compare_tables(self):
         rows_gui = self.table.get()
@@ -267,22 +299,7 @@ class TableWindow(BaseWindow):
     # <--- handle
 
     def open_table_infomation_window(self, key):
-        ret = self.dbop.execute(f'DESCRIBE {self.tname}')
-        if ret.is_error:
-            Log.fatal_error(f'Bad query: {self.tname}')
-        des_cols = self.dbop.get_current_columns()  # des_cols   : ['Field', 'Type'       , 'Null', 'Key', 'Default', 'Extra']
-        des_data = self.dbop.fetchall()             # des_data[0]: ('id'   , 'varchar(10)', 'NO'  , 'PRI', None     , '')
-        try:
-            idx = des_cols.index('Field')
-            columns = [d[idx] for d in des_data] + ['HEADING']
-            data = []
-            for i, c in enumerate(des_cols):
-                if i == idx:
-                    continue
-                data.append([d[i] for d in des_data] + [c])
-        except Exception:
-            columns = des_cols
-            data = des_data
+        columns, data = self._desc_col_data
         location = self.subwin.get_location(widgetkey=key, widgety=True, dy=150)
         self.subwin.create_unique(key, TableDescriptionWindow, self.pack, self.tname, columns, data, location)
 
