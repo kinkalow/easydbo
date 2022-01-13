@@ -17,6 +17,7 @@ class TableWindow(BaseWindow):
         #
         self.dbop = pack.dbop
         self.columns = pack.tableop.get_columns([tname], full=True)[0]
+        cfg = pack.configs.table_window
         #self.types = pack.tableop.get_types([tname])[0]
         self.sort_reverse = True
         self.rightclick_location = (-1, -1)
@@ -27,6 +28,10 @@ class TableWindow(BaseWindow):
         self.pk = table.pk
         self.pkidx = table.pkidx
         self.pkauto = table.pkauto
+
+        #
+        # Keys
+        #
 
         prefkey = self.make_prefix_key(f'table{tname}')
         self.key_description = f'{prefkey}description'
@@ -48,69 +53,89 @@ class TableWindow(BaseWindow):
         self.key_table_rightclick = f'{self.key_table}.rightclick'  # bind
         self.key_table_doubleclick = f'{self.key_table}.doubleclick'  # bind
         #
-        self.key_rightclick_copypastecell = '[Cell] CopyPaste'
-        self.key_rightclick_printcell = '[Cell] Print'
-        self.key_rightclick_copypasterow = '[Row] CopyPaste'
-        self.key_rightclick_printrow = '[Row] Print'
-        self.key_rightclick_copypasteselected = '[Selected] CopyPaste'
-        self.key_rightclick_printselected = '[Selected] Print'
-        self.key_rightclick_saveselected = '[Selected] Save'
-        self.key_rightclick_printall = '[All] Print'
-        self.key_rightclick_saveall = '[All] Save'
+        self.key_rightclick_cell_copypaste = '[Cell] CopyPaste'
+        self.key_rightclick_cell_print = '[Cell] Print'
+        self.key_rightclick_row_copypaste = '[Row] CopyPaste'
+        self.key_rightclick_row_print = '[Row] Print'
+        self.key_rightclick_selected_copypaste = '[Selected] CopyPaste'
+        self.key_rightclick_selected_print = '[Selected] Print'
+        self.key_rightclick_selected_save = '[Selected] Save'
+        self.key_rightclick_all_print = '[All] Print'
+        self.key_rightclick_all_save = '[All] Save'
 
-        query = f'SELECT * from {tname}'
-        self.filter_layout = FilterLayout(prefkey, self.columns, self.key_table, pack.dbop, query)
+        #
+        # Layout
+        #
 
+        # layout_insert
         self._desc_col_data, text_colors = self._get_description_and_textcolor(self.dbop, self.tname, len(self.columns))
-
-        self.rightclick_commands = [
-            self.key_rightclick_copypastecell,
-            self.key_rightclick_printcell,
-            '-' * 30,
-            self.key_rightclick_copypasterow,
-            self.key_rightclick_printrow,
-            '-' * 30,
-            self.key_rightclick_copypasteselected,
-            self.key_rightclick_printselected,
-            self.key_rightclick_saveselected,
-            '-' * 30,
-            self.key_rightclick_printall,
-            self.key_rightclick_saveall,
-        ]
-
-        layout = [
+        layout_insert = [
             [sg.Text(f' {tname} ', **attr.text_table),
              sg.Button('Description', **attr.base_button_with_color_safety, key=self.key_description)],
             [sg.Text(c, **attr.base_text, key=self.key_candidates[i], size=(20, 1), enable_events=True,
                      background_color=text_colors[i]) for i, c in enumerate(self.columns)],
-            #text_color='black', background_color=text_colors[i]) for i, c in enumerate(self.columns)],
             [sg.InputText('', **attr.base_inputtext, key=self.key_inputs[i], size=(20, 1)) for i, c in enumerate(self.columns)],
-            [
-                sg.Button('Insert', **attr.base_button_with_color_warning, key=self.key_insert),
-                sg.Button('Clear', **attr.base_button_with_color_safety, key=self.key_clear),
-            ],
-            self.filter_layout.layout,
-            [
-                sg.Frame('All', [[
-                    sg.Button('Save', **attr.base_button_with_color_safety, key=self.key_saveall),
-                    sg.Button('Print', **attr.base_button_with_color_safety, key=self.key_printall),
-                    sg.Button('GrepRun', **attr.base_button_with_color_safety, key=self.key_greprun),
-                    sg.InputText('', **attr.base_inputtext, key=self.key_greptext),
-                ]],
-                title_location=sg.TITLE_LOCATION_RIGHT,
-                ),
-            ],
-            [
-                sg.Frame('Selected', [[
-                    sg.Button('CopyPaste', **attr.base_button_with_color_safety, key=self.key_copypasterow),
-                    sg.Button('Save', **attr.base_button_with_color_safety, key=self.key_saveselected),
-                    sg.Button('Print', **attr.base_button_with_color_safety, key=self.key_printselected),
-                    sg.Button('Update', **attr.base_button_with_color_warning, key=self.key_update),
-                    sg.Button('Delete', **attr.base_button_with_color_danger, key=self.key_delete),
-                ]],
-                title_location=sg.TITLE_LOCATION_RIGHT,
-                )
-            ],
+            [sg.Button('Insert', **attr.base_button_with_color_warning, key=self.key_insert),
+             sg.Button('Clear', **attr.base_button_with_color_safety, key=self.key_clear)],
+        ]
+
+        # layout_filter
+        query = f'SELECT * from {tname}'
+        self.filter_layout = FilterLayout(prefkey, self.columns, self.key_table, pack.dbop, query)
+        layout_filter = self.filter_layout.layout
+
+        # layout_all
+        layout_all = []
+        if cfg.enable_all_save:
+            layout_all.append(sg.Button('Save', **attr.base_button_with_color_safety, key=self.key_saveall))
+        if cfg.enable_all_print:
+            layout_all.append(sg.Button('Print', **attr.base_button_with_color_safety, key=self.key_printall))
+        if cfg.enable_all_greprun:
+            layout_all.append(sg.Button('GrepRun', **attr.base_button_with_color_safety, key=self.key_greprun))
+            layout_all.append(sg.InputText('', **attr.base_inputtext, key=self.key_greptext))
+        if layout_all:
+            layout_all = [sg.Frame('All', [layout_all], title_location=sg.TITLE_LOCATION_RIGHT)]
+
+        # layout_selected
+        layout_selected = []
+        if cfg.enable_selected_copypaste:
+            layout_selected.append(sg.Button('CopyPaste', **attr.base_button_with_color_safety, key=self.key_copypasterow))
+        if cfg.enable_selected_save:
+            layout_selected.append(sg.Button('Save', **attr.base_button_with_color_safety, key=self.key_saveselected))
+        if cfg.enable_selected_print:
+            layout_selected.append(sg.Button('Print', **attr.base_button_with_color_safety, key=self.key_printselected))
+        layout_selected += [sg.Button('Update', **attr.base_button_with_color_warning, key=self.key_update),
+                            sg.Button('Delete', **attr.base_button_with_color_danger, key=self.key_delete)]
+        layout_selected = [sg.Frame('Selected', [layout_selected], title_location=sg.TITLE_LOCATION_RIGHT)],
+
+        # layout_table
+        separator_line = '-' * 30
+        self.rightclick_commands = rc_cmds = []
+        if cfg.enable_rightclick_cell_copypaste:
+            rc_cmds.append(self.key_rightclick_cell_copypaste)
+        if cfg.enable_rightclick_cell_print:
+            rc_cmds.append(self.key_rightclick_cell_print)
+        if cfg.enable_rightclick_cell_copypaste or cfg.enable_rightclick_cell_print:
+            rc_cmds.append(separator_line)
+        if cfg.enable_rightclick_row_copypaste:
+            rc_cmds.append(self.key_rightclick_row_copypaste)
+        if cfg.enable_rightclick_row_print:
+            rc_cmds.append(self.key_rightclick_row_print)
+        if cfg.enable_rightclick_row_copypaste or cfg.enable_rightclick_row_print:
+            rc_cmds.append(separator_line)
+        if cfg.enable_rightclick_selected_copypaste:
+            rc_cmds.append(self.key_rightclick_selected_copypaste)
+        if cfg.enable_rightclick_selected_print:
+            rc_cmds.append(self.key_rightclick_selected_print)
+        if cfg.enable_rightclick_selected_save:
+            rc_cmds.append(self.key_rightclick_selected_save)
+        if cfg.enable_rightclick_selected_copypaste or cfg.enable_rightclick_selected_print or cfg.enable_rightclick_selected_save:
+            rc_cmds.append(separator_line)
+        if cfg.enable_rightclick_all_print:
+            rc_cmds.append(self.key_rightclick_all_print)
+        if cfg.enable_rightclick_all_save:
+            rc_cmds.append(self.key_rightclick_all_save)
+        layout_table = [
             [sg.Table(
                 self.get_table_from_database(),
                 **attr.base_table,
@@ -118,12 +143,23 @@ class TableWindow(BaseWindow):
                 headings=self.columns,
                 col_widths=[20 for _ in range(len(self.columns))],
                 enable_click_events=True,
-                right_click_menu=['&Right', self.rightclick_commands],
+                right_click_menu=['&Right', rc_cmds] if rc_cmds else [],
                 expand_y=True,
             )],
         ]
 
+        layout = [
+            layout_insert,
+            layout_filter,
+            layout_all,
+            layout_selected,
+            layout_table,
+        ]
+
+        #
         # Window
+        #
+
         self._window = sg.Window(
             f'EasyDBO {tname}',
             layout,
@@ -149,28 +185,27 @@ class TableWindow(BaseWindow):
     def _get_description_and_textcolor(self, dbop, tname, num_columns):
         # Description
         des_cols, des_data = dbop.get_description(tname)
+        # Check
+        colors = [None] * num_columns
+        if des_cols != ['Field', 'Type', 'Null', 'Key', 'Default', 'Extra']:
+            return (des_cols, des_data), colors
+        # Change Null to None(NULL)
+        des_cols[des_cols.index('Null')] = 'None(NULL)'
         # Convert for readability
-        try:
-            idx = des_cols.index('Field')
-            columns = [d[idx] for d in des_data] + ['HEADING']
-            data = []
-            for i, c in enumerate(des_cols):
-                if i == idx:
-                    continue
-                data.append([d[i] for d in des_data] + [c])
-        except Exception:
-            columns = des_cols
-            data = des_data
+        idx = des_cols.index('Field')
+        columns = [d[idx] for d in des_data] + ['HEADER']
+        data = []
+        for i, c in enumerate(des_cols):
+            if i == idx:
+                continue
+            data.append([d[i] for d in des_data] + [c])
         # Text background color
-        try:
-            i_null = des_cols.index('Null')
-            i_extra = des_cols.index('Extra')
-            nulls = [d[i_null] for d in des_data]
-            extra = [d[i_extra] for d in des_data]
-            colors = [attr.color_optional if n == 'YES' or e.find('auto_increment') != -1 else
-                      attr.color_required for n, e in zip(nulls, extra)]
-        except Exception:
-            colors = [None] * num_columns
+        i_null = des_cols.index('None(NULL)')  # Original is Null, not None(NULL)
+        i_extra = des_cols.index('Extra')
+        nulls = [d[i_null] for d in des_data]
+        extra = [d[i_extra] for d in des_data]
+        colors = [attr.color_optional if n == 'YES' or e.find('auto_increment') != -1 else
+                  attr.color_required for n, e in zip(nulls, extra)]
         # Return
         return (columns, data), colors
 
@@ -270,28 +305,28 @@ class TableWindow(BaseWindow):
             if row == -1:  # Ignore header line
                 return
             # Cell
-            if event == self.key_rightclick_copypastecell:
+            if event == self.key_rightclick_cell_copypaste:
                 self.copypaste_cell(row, col)
-            elif event == self.key_rightclick_printcell:
+            elif event == self.key_rightclick_cell_print:
                 self.print_cell(row, col)
             # Row
-            elif event == self.key_rightclick_copypasterow:
+            elif event == self.key_rightclick_row_copypaste:
                 self.copypaste_row(row)
-            elif event == self.key_rightclick_printrow:
+            elif event == self.key_rightclick_row_print:
                 self.print_rows(rows=[row])
             # Selected
-            elif event == self.key_rightclick_copypasteselected:
+            elif event == self.key_rightclick_selected_copypaste:
                 rows = values[self.key_table]
                 if rows:
                     self.copypaste_row(rows[0])
-            elif event == self.key_rightclick_printselected:
+            elif event == self.key_rightclick_selected_print:
                 self.print_rows(rows=values[self.key_table])
-            elif event == self.key_rightclick_saveselected:
+            elif event == self.key_rightclick_selected_save:
                 self.save_as_csv(rows=values[self.key_table])
             # All
-            elif event == self.key_rightclick_printall:
+            elif event == self.key_rightclick_all_print:
                 self.print_rows(is_all=True)
-            elif event == self.key_rightclick_saveall:
+            elif event == self.key_rightclick_all_save:
                 self.save_as_csv(is_all=True)
         elif event == self.key_table_doubleclick:
             self.print_rows(rows=values[self.key_table])
@@ -481,6 +516,7 @@ class TableDescriptionWindow(BaseWindow):
             f'EasyDBO {tname} description',
             layout,
             finalize=True,
+            grab_anywhere=True,
             keep_on_top=True,
             location=location,
             margins=(0, 0),
