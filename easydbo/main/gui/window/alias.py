@@ -1,20 +1,20 @@
 import PySimpleGUI as sg
-from easydbo.init.alias import AliasLoader
 from .base import BaseWindow
 from .common.layout.attribution import Attribution as attr
 from .common.sql import create_sql_result
 from ..manager import SubWindow
+
 
 class AliasWindow(BaseWindow):
     def __init__(self, pack, location, parent_alias_method, size=None):
         self.pack = pack
         self.parent_alias_method = parent_alias_method
 
+        self.aliasmgr = pack.aliasmgr
+        aliases = self.aliasmgr.reload()
+        placeholder_mark = self.aliasmgr.placeholder_mark
+
         self.prefkey = prefkey = self.make_prefix_key('alias')
-        #aliases = pack.aliases
-        aliases = AliasLoader().get()
-        placeholder_mark = '?'
-        self.key_reset = f'{prefkey}reset'
         self.key_reload = f'{prefkey}reload'
         self.key_aliasnames = [f'{prefkey}{a.name}.button' for a in aliases]
         self.key_scroll = f'{prefkey}scroll'
@@ -26,7 +26,7 @@ class AliasWindow(BaseWindow):
         maxlen = max(len(a.name) for a in aliases)
         layout = []
         for i, a in enumerate(aliases):
-            n_qestionmark = len(a.sql.split(placeholder_mark)) - 1
+            n_qestionmark = a.sql.count(placeholder_mark)
             layout.append([
                 sg.Button(a.name, **attr.base_button_with_color_safety, key=self.key_aliasnames[i], size=(maxlen, 1)),
                 sg.InputText(a.sql, **attr.base_inputtext, key=self.key_inputs[i], size=(200, 1), expand_x=True),  # Do not extend in x direction only first if size is not present
@@ -40,8 +40,7 @@ class AliasWindow(BaseWindow):
                     + [sg.InputText('', **attr.base_inputtext, key=keys[j], size=(19, 1)) for j in range(n_qestionmark)]
                 )
         layout = [
-            [sg.Button('Reset', **attr.base_button_with_color_safety, key=self.key_reset),
-             sg.Button('Reload', **attr.base_button_with_color_safety, key=self.key_reload)],
+            [sg.Button('Reload', **attr.base_button_with_color_safety, key=self.key_reload)],
             [sg.Column(layout, key=self.key_scroll, pad=(0, 0), expand_x=True, expand_y=True,
                        scrollable=True, vertical_scroll_only=True)],
         ]
@@ -63,9 +62,7 @@ class AliasWindow(BaseWindow):
                     canvas.itemconfig(frame_id, width=canvas.winfo_width()))
 
     def handle(self, event, values):
-        if event in self.key_reset:
-            self.reset()
-        elif event == self.key_reload:
+        if event == self.key_reload:
             self.reload()
         elif event in self.key_aliasnames:
             key_value = '.'.join(event.split('.')[:-1] + [self.key_inputs[0].split('.')[-1]])
@@ -75,10 +72,13 @@ class AliasWindow(BaseWindow):
         [self.window[k].Update(v) for k, v in zip(self.key_inputs, self.sqls)]
 
     def reload(self):
-        location = self.subwin.get_location()
-        size = self.window.Size
-        self.close()
-        self.parent_alias_method(location=location, size=size)
+        if self.aliasmgr.is_modified():
+            location = self.subwin.get_location()
+            size = self.window.Size
+            self.close()
+            self.parent_alias_method(location=location, size=size)
+        else:
+            self.reset()
 
     def query(self, key, query):
         location = self.subwin.get_location(widgetkey=key, widgetx=True, widgety=True, dy=60)

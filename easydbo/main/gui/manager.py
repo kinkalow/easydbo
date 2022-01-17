@@ -40,6 +40,7 @@ class SubWindow:
 
     def create_unique(self, name, window_class, *args, **kwargs):
         if self.sub_windows[name] in WindowManager().windows:
+            #self.sub_windows[name].bring_to_front()  # Does not work
             return
         winobj = self.create_multiples(window_class, *args, **kwargs)
         self.sub_windows[name] = winobj.window

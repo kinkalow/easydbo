@@ -18,6 +18,7 @@ _default = {
         'format': '',
     },
     'table_window': {
+        'confirm_deletion': True,
         'enable_all_save': True,
         'enable_all_print': True,
         'enable_all_greprun': True,

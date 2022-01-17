@@ -17,7 +17,7 @@ class TableWindow(BaseWindow):
         #
         self.dbop = pack.dbop
         self.columns = pack.tableop.get_columns([tname], full=True)[0]
-        cfg = pack.configs.table_window
+        self.cfg = cfg = pack.configs.table_window
         #self.types = pack.tableop.get_types([tname])[0]
         self.sort_reverse = True
         self.rightclick_location = (-1, -1)
@@ -143,7 +143,7 @@ class TableWindow(BaseWindow):
                 headings=self.columns,
                 col_widths=[20 for _ in range(len(self.columns))],
                 enable_click_events=True,
-                right_click_menu=['&Right', rc_cmds] if rc_cmds else [],
+                right_click_menu=['&Right', rc_cmds] if rc_cmds else None,
                 expand_y=True,
             )],
         ]
@@ -408,10 +408,11 @@ class TableWindow(BaseWindow):
         if not rows:
             return
         # Confirm deletion
-        #loc = self.subwin.get_location(widgetkey=self.key_delete, widgetx=True, widgety=True)
-        #ret = sg.popup_ok_cancel('Delete selected rows?', keep_on_top=True, location=loc)
-        #if ret == 'Cancel':
-        #    return
+        if self.cfg.confirm_deletion:
+            loc = self.subwin.get_location(widgetkey=self.key_delete, widgetx=True, widgety=True)
+            ret = sg.popup_ok_cancel('Delete selected rows?', keep_on_top=True, location=loc)
+            if ret == 'Cancel':
+                return
         # Delete data
         table_data = self.table.get()
         data = [table_data[r] for r in rows]
@@ -543,10 +544,12 @@ class TableUpdateWindow(BaseWindow):
 
         prefkey = self.make_prefix_key(f'table{tname}update')
         self.key_update = f'{prefkey}update'
+        self.key_cancel = f'{prefkey}cancel'
         self.key_inputs = [[f'{prefkey}{r}.{c}.input' for c in columns] for r in rows]
 
         layout = [
-            [sg.Button('Update', **attr.base_button, button_color=attr.color_warning, key=self.key_update)],
+            [sg.Button('Update', **attr.base_button, button_color=attr.color_warning, key=self.key_update),
+             sg.Button('Cancel', **attr.base_button, button_color=attr.color_safety, key=self.key_cancel)],
             [sg.Text(c, **attr.base_text, size=(20, 1)) for i, c in enumerate(columns)],
             [[sg.InputText(d0d, **attr.base_inputtext, key=self.key_inputs[i][j], size=(20, 1))
               for j, d0d in enumerate(d1d)] for i, d1d in enumerate(selected_data)],
@@ -566,6 +569,8 @@ class TableUpdateWindow(BaseWindow):
     def handle(self, event, values):
         if event == self.key_update:
             self.update()
+        elif event == self.key_cancel:
+            self.cancel()
 
     def update(self):
         # Check
@@ -599,4 +604,7 @@ class TableUpdateWindow(BaseWindow):
 
         self.dbop.commit()
         self.parent.update_table_from_outside(rows, updates)
+        self.close()
+
+    def cancel(self):
         self.close()

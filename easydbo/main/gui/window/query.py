@@ -2,6 +2,7 @@ import PySimpleGUI as sg
 from .base import BaseWindow
 from .common.layout.attribution import Attribution as attr
 from .common.layout.filter import FilterLayout
+from .common.log import Log
 from ..manager import SubWindow
 
 class QueryResultWindow(BaseWindow):
@@ -66,8 +67,7 @@ class QueryResultWindow(BaseWindow):
         # Pass widnow
         self.filter_layout.set_window(self._window)
         # Subwindows
-        subwin_names = [self.key_querybtn]
-        self.subwin = SubWindow(self.window, subwin_names)
+        self.subwin = SubWindow(self.window, [self.key_querybtn])
 
         #frame_id = self.window[self.key_table].Widget.frame_id
         #canvas = self.window[self.key_table].Widget.canvas
@@ -91,9 +91,8 @@ class QueryResultWindow(BaseWindow):
             self.save_as_csv(path)
 
     def add_alias(self, key):
-        from .save_as_alias import SaveAsAliasWindow
         location = self.subwin.get_location(widgetkey=key, widgety=True, dy=60)
-        self.subwin.create_unique(key, SaveAsAliasWindow, self.pack, self.query, location)
+        self.subwin.create_unique(key, QuerySaveWindow, self.pack, self.query, location)
 
     def _to_csv(self, header, data2d, delimiter=','):
         header_csv = delimiter.join(header)
@@ -138,3 +137,76 @@ class QueryResultWindow(BaseWindow):
         from .common.command import save_table_data
         table = self.window[self.key_table]
         save_table_data(path, table.ColumnHeadings, table.get())
+
+
+class QuerySaveWindow(BaseWindow):
+    def __init__(self, pack, query, location):
+        self.aliasmgr = pack.aliasmgr
+
+        prefkey = self.make_prefix_key('saveasalias', timestamp=True)
+        self.key_save = f'{prefkey}save'
+        self.key_cancel = f'{prefkey}cancel'
+        self.key_alias = f'{prefkey}alias'
+        self.key_query = f'{prefkey}query'
+
+        self.layout = [
+            [
+                sg.Button('Save', **attr.base_button_with_color_safety, key=self.key_save),
+                sg.Button('Close', **attr.base_button_with_color_safety, key=self.key_cancel),
+            ],
+            [
+                sg.Text('Alias', **attr.base_text, size=(5, 1)),
+                sg.InputText('', **attr.base_inputtext, key=self.key_alias),
+            ],
+            [
+                sg.Text('Query', **attr.base_text, size=(5, 1)),
+                sg.Multiline(query, **attr.base_multiline, key=self.key_query, expand_x=True, expand_y=True, size=(1300, 500)),
+            ],
+        ]
+
+        self._window = sg.Window(
+            'EasyDBO QuerySave',
+            self.layout,
+            finalize=True,
+            location=location,
+            resizable=True,
+            size=(1300, 500),
+        )
+
+        self.subwin = SubWindow(self.window, [self.key_save])
+
+    def handle(self, event, values):
+        if event == self.key_save:
+            self.save(event)
+        elif event == self.key_cancel:
+            self.cancel()
+
+    def save(self, key):
+        name = self.window[self.key_alias].get()
+        if name == '':
+            return Log.miss('Set alias name')
+        # Check
+        idx_update = self.aliasmgr.index(name)
+        if idx_update != -1:
+            loc = self.subwin.get_location(widgetkey=key, widgetx=True, widgety=True)
+            ret = sg.popup_ok_cancel('Overwrite alias?', keep_on_top=True, location=loc)
+            if ret == 'Cancel':
+                return
+        # Add or Update
+        query = self.window[self.key_query].get()
+        if idx_update == -1:
+            self.aliasmgr.insert(0, name, query)
+            add_or_update = 'Add'
+        else:
+            self.aliasmgr.update(name, query, index=idx_update)
+            add_or_update = 'Update'
+        # Update file
+        self.aliasmgr.save()
+        Log.info(f'{add_or_update} alias: {name}')
+        self.close()
+
+    def add(self, name, sql):
+        pass
+
+    def cancel(self):
+        self.close()

@@ -6,16 +6,16 @@ from .window.main import MainWindow
 
 
 class Pack:
-    def __init__(self, configs, aliases, tableop, dbop):
+    def __init__(self, configs, aliasmgr, tableop, dbop):
         self.configs = configs
-        self.aliases = aliases
+        self.aliasmgr = aliasmgr
         self.tableop = tableop
         self.dbop = dbop
 
 
 class Application():
-    def __init__(self, configs, aliases, tableop, dbop):
-        pack = Pack(configs, aliases, tableop, dbop)
+    def __init__(self, configs, aliasmgr, tableop, dbop):
+        pack = Pack(configs, aliasmgr, tableop, dbop)
         select = MainWindow(pack)
         self.winmgr = WindowManager()
         self.winmgr.add(select)
