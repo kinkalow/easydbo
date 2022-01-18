@@ -5,7 +5,7 @@ from easydbo.exception import EASYDBO_GOTO_LOOP, EASYDBO_USER_ERROR
 from .alias import AliasWindow
 from .base import BaseWindow
 from .common.layout.attribution import Attribution as attr
-from .common.sql import create_sql_result
+from .common.sql import create_query_result_window
 from .table import TableWindow
 from ..manager import SubWindow
 
@@ -213,7 +213,7 @@ class FullJoinLayout():
     def show(self, sql_select, sql_from, sql_where, sql_others=''):
         query = f'{sql_select} {sql_from} {sql_where} {sql_others}'.rstrip() + ';'
         location = self.subwin.get_location(dy=30)
-        create_sql_result(query, self.pack, self.subwin, location)
+        create_query_result_window(query, self.pack, self.subwin, location)
 
     def check_checkboxes(self, values, true_or_false):
         for k in values.keys():

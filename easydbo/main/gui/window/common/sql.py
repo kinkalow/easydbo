@@ -1,6 +1,6 @@
 from ..query import QueryResultWindow
 
-def create_sql_result(query, pack, subwin, location):
+def create_query_result_window(query, pack, subwin, location):
     dbop = pack.dbop
     ret = dbop.execute(query, ignore_error=True)
     if ret.is_error:

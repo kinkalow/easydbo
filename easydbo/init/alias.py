@@ -13,15 +13,16 @@ class AliasLoader(File):
     def load(self):
         with open(self._path) as f:
             aliases = json.load(f)
-        self._aliases = [Alias(a['name'], a['sql']) for a in aliases]
+        self._aliases = [Alias(a['name'], a['query']) for a in aliases]
 
     def get(self):
         return self._aliases
 
+
 class Alias:
-    def __init__(self, name, sql):
+    def __init__(self, name, query):
         self.name = name
-        self.sql = sql
+        self.query = query
 
 
 #
@@ -45,6 +46,7 @@ class AliasManagerCLI(AliasLoader):
         if name not in self._get_aliasnames():
             Log.error(f"Alias must be chosen from list: {self._get_aliasnames()}")
 
+
 #
 # For GUI
 #
@@ -52,8 +54,8 @@ class AliasManager(AliasLoader):
 
     def __init__(self):
         super().__init__()
-        self._placeholder_mark = '?'
         self._update_modified_time()
+        self.phconv = AliasPlaceholderConverter()
 
     # Modified time of alias file --->
 
@@ -82,7 +84,7 @@ class AliasManager(AliasLoader):
 
     def save(self):
         with open(self._path, 'w') as f:
-            items = [{'name': a.name, 'sql': a.sql} for a in self._aliases]
+            items = [{'name': a.name, 'query': a.query} for a in self._aliases]
             json.dump(items, f, indent=2)
 
     def update(self, name, query, index=None):
@@ -94,6 +96,20 @@ class AliasManager(AliasLoader):
                     self._aliases[i] = Alias(name, query)
                     break
 
+
+class AliasPlaceholderConverter():
+    def __init__(self):
+        self.mark = '?'
+
+    def count(self, query):
+        return query.count(self.mark)
+
+    def convert(self, query, values):
+        for v in values:
+            query = query.replace(self.mark, v, 1)
+        print(query)
+        return query
+
     @ property
     def placeholder_mark(self):
-        return self._placeholder_mark
+        return self.mark

@@ -18,9 +18,9 @@ class Log:
 
     @staticmethod
     def info(msg):
-        print('[PROGRAM ERROR]', msg)
+        print(msg)
 
     @staticmethod
     def fatal_error(msg):
-        print(msg)
+        print('[PROGRAM ERROR]', msg)
         exit(1)

@@ -1,8 +1,9 @@
 import PySimpleGUI as sg
 from .base import BaseWindow
 from .common.layout.attribution import Attribution as attr
-from .common.sql import create_sql_result
+from .common.sql import create_query_result_window
 from ..manager import SubWindow
+from .common.log import Log
 
 
 class AliasWindow(BaseWindow):
@@ -12,32 +13,32 @@ class AliasWindow(BaseWindow):
 
         self.aliasmgr = pack.aliasmgr
         aliases = self.aliasmgr.reload()
-        placeholder_mark = self.aliasmgr.placeholder_mark
+        self.phconv = self.aliasmgr.phconv
 
         self.prefkey = prefkey = self.make_prefix_key('alias')
         self.key_reload = f'{prefkey}reload'
-        self.key_aliasnames = [f'{prefkey}{a.name}.button' for a in aliases]
+        self.key_buttons = [f'{prefkey}{a.name}.button' for a in aliases]
         self.key_scroll = f'{prefkey}scroll'
-        self.key_inputs = [f'{prefkey}{a.name}.inputtext' for a in aliases]
-        self.key_mark = []  # Define below
+        self.key_querys = [f'{prefkey}{a.name}.placeholder' for a in aliases]
+        self.key_placeholders = {}  # Dict{index: List} ... Define below
 
-        self.sqls = [a.sql for a in aliases]
+        self.querys = [a.query for a in aliases]
 
         maxlen = max(len(a.name) for a in aliases)
         layout = []
         for i, a in enumerate(aliases):
-            n_qestionmark = a.sql.count(placeholder_mark)
+            n_mark = self.phconv.count(a.query)
             layout.append([
-                sg.Button(a.name, **attr.base_button_with_color_safety, key=self.key_aliasnames[i], size=(maxlen, 1)),
-                sg.InputText(a.sql, **attr.base_inputtext, key=self.key_inputs[i], size=(200, 1), expand_x=True),  # Do not extend in x direction only first if size is not present
+                sg.Button(a.name, **attr.base_button_with_color_safety, key=self.key_buttons[i], size=(maxlen, 1)),
+                sg.InputText(a.query, **attr.base_inputtext, key=self.key_querys[i], size=(200, 1), expand_x=True),  # Do not extend in x direction, so add size
             ])
             # placeholders
-            if n_qestionmark > 0:
-                keys = [f'{prefkey}{a.name}.mark.{j}' for j in range(n_qestionmark)]
-                self.key_mark.append(keys)
+            if n_mark > 0:
+                keys = [f'{prefkey}{a.name}.mark.{j}' for j in range(n_mark)]
+                self.key_placeholders[i] = keys
                 layout.append(
-                    [sg.Button('', **attr.base_button_with_color_safety, key=self.key_aliasnames[i], size=(maxlen, 1))]
-                    + [sg.InputText('', **attr.base_inputtext, key=keys[j], size=(19, 1)) for j in range(n_qestionmark)]
+                    [sg.Button('', **attr.base_button_with_color_safety, key=self.key_buttons[i], size=(maxlen, 1))]
+                    + [sg.InputText('', **attr.base_inputtext, key=keys[j], size=(19, 1)) for j in range(n_mark)]
                 )
         layout = [
             [sg.Button('Reload', **attr.base_button_with_color_safety, key=self.key_reload)],
@@ -53,7 +54,7 @@ class AliasWindow(BaseWindow):
             resizable=True,
             size=size if size else (1300, 800),
         )
-        subwin_names = self.key_aliasnames
+        subwin_names = self.key_buttons
         self.subwin = SubWindow(self.window, subwin_names)
 
         frame_id = self.window[self.key_scroll].Widget.frame_id
@@ -64,12 +65,12 @@ class AliasWindow(BaseWindow):
     def handle(self, event, values):
         if event == self.key_reload:
             self.reload()
-        elif event in self.key_aliasnames:
-            key_value = '.'.join(event.split('.')[:-1] + [self.key_inputs[0].split('.')[-1]])
-            self.query(event, values[key_value])
+        elif event in self.key_buttons:
+            key = '.'.join(event.split('.')[:-1] + [self.key_querys[0].split('.')[-1]])
+            self.query(event, values[key])
 
     def reset(self):
-        [self.window[k].Update(v) for k, v in zip(self.key_inputs, self.sqls)]
+        [self.window[k].Update(v) for k, v in zip(self.key_querys, self.querys)]
 
     def reload(self):
         if self.aliasmgr.is_modified():
@@ -81,5 +82,15 @@ class AliasWindow(BaseWindow):
             self.reset()
 
     def query(self, key, query):
+        # Process placeholders
+        idx = self.key_buttons.index(key)
+        if idx in self.key_placeholders:
+            key_phs = self.key_placeholders[idx]
+            phvals = [self.window[k].get() for k in key_phs]
+            for v in phvals:
+                if not v:
+                    return Log.miss(f'Missing placeholder values for alias({key.split(".")[1]})')
+            query = self.phconv.convert(query, phvals)
+        # Create window
         location = self.subwin.get_location(widgetkey=key, widgetx=True, widgety=True, dy=60)
-        create_sql_result(query, self.pack, self.subwin, location)
+        create_query_result_window(query, self.pack, self.subwin, location)

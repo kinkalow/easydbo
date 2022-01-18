@@ -1,22 +1,22 @@
 [
   {
     "name": "human",
-    "sql": "SELECT * FROM human;"
+    "query": "SELECT * FROM human;"
   },
   {
     "name": "cancer",
-    "sql": "SELECT * FROM cancer;"
+    "query": "SELECT * FROM cancer;"
   },
   {
     "name": "fastq",
-    "sql": "SELECT cancer_path as fastq, human_sex as sex FROM human as h JOIN cancer as c ON h.human_id = c.human_id;"
+    "query": "SELECT cancer_path as fastq, human_sex as sex FROM human as h JOIN cancer as c ON h.human_id = c.human_id;"
   },
   {
     "name": "manfastq",
-    "sql": "SELECT cancer_path as man_fastq FROM human as h JOIN cancer as c ON h.human_id = c.human_id WHERE h.human_sex = 'man';"
+    "query": "SELECT cancer_path as man_fastq FROM human as h JOIN cancer as c ON h.human_id = c.human_id WHERE h.human_sex = 'man';"
   },
   {
     "name": "?fastq",
-    "sql": "SELECT ? FROM human as h JOIN cancer as c ON h.human_id = c.human_id WHERE h.human_sex = '?';"
+    "query": "SELECT ? FROM human as h JOIN cancer as c ON h.human_id = c.human_id WHERE h.human_sex = '?';"
   }
 ]

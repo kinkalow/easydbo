@@ -13,7 +13,7 @@ def main(arguments, configs, tableop, dbop):
     # Access database
     dbop.authenticate()
     tgt_alias = aliasmgr.get_alias_by_name(tgt_alias_name)
-    tgt_cmd = tgt_alias.sql
+    tgt_cmd = tgt_alias.query
     rows = dbop.select_by_cmd(tgt_cmd)  # Perform this method first
     columns = dbop.get_current_columns()
     title = dbop.get_current_query()
