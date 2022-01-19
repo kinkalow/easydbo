@@ -1,6 +1,7 @@
 import sys
 import PySimpleGUI as sg
 from easydbo.exception import EASYDBO_GOTO_LOOP
+from easydbo.output.print_ import SimplePrint as SP
 from .manager import WindowManager
 from .window.main import MainWindow
 
@@ -26,7 +27,6 @@ class Application():
             try:
                 sys.stdout.flush()
                 window, event, values = sg.read_all_windows()
-                #print(window, event, values, window in self.windows)
                 if event == sg.WIN_CLOSED:
                     if window == self.main_window:
                         self.winmgr.close()
@@ -36,4 +36,4 @@ class Application():
                 elif window in self.winmgr.windows:
                     self.winmgr.windows[window].handle(event, values)
             except EASYDBO_GOTO_LOOP as e:
-                print(e)
+                SP.error(e, do_exit=False)

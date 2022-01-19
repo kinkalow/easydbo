@@ -1,5 +1,6 @@
 import re
 import PySimpleGUI as sg
+from easydbo.output.print_ import SimplePrint as SP
 from .attribution import Attribution as attr
 
 class FilterLayout():
@@ -59,7 +60,7 @@ class FilterLayout():
     def get_table_from_database(self):
         ret = self.dbop.execute(self.query, ignore_error=True)
         if ret.is_error:
-            print(f'[Error] Something is wrong query\n{ret}')
+            SP.error([f'Wrong query: {self.query}', ret.show()], do_exit=False)
             return
         rows = self.dbop.fetchall()
         return rows

@@ -1,7 +1,7 @@
 import re
 import getpass
 from mysql import connector
-from easydbo.output.log import Log
+from easydbo.output.print_ import SimplePrint as SP
 
 class DatabaseOperation:
     def __init__(self, config):
@@ -17,7 +17,7 @@ class DatabaseOperation:
         cfg = {k: v for k, v in self.config.items() if v}
         conn = connector.connect(**cfg)
         if not conn.is_connected():
-            Log.error('Connection to MySQL server failed')
+            SP.error('Connection to MySQL server failed')
         self.conn = conn
         self.cursor = conn.cursor(buffered=True)
         self.is_connect = True
@@ -39,7 +39,7 @@ SELECT Min(_EASYDBO_TABLE.{column})+1 AS min_num FROM (SELECT {column} FROM {tab
     def get_description(self, table):
         ret = self.execute(f'DESCRIBE {table};')
         if ret.is_error:
-            Log.fatal_error(f'Bad query: {self.get_current_query()}')
+            SP.fatal_error(f'Bad query: {self.get_current_query()}')
         cols = self.get_current_columns()  # cols   : ['Field', 'Type'       , 'Null', 'Key', 'Default', 'Extra']
         data = self.fetchall()             # data[0]: ('id'   , 'varchar(10)', 'NO'  , 'PRI', None     , '')
         return cols, data
@@ -128,29 +128,31 @@ SELECT Min(_EASYDBO_TABLE.{column})+1 AS min_num FROM (SELECT {column} FROM {tab
         errors = [str(error), f'QUERRY: {query}']
         if ignore_error:
             if print_error:
-                Log.error(errors, ignore_exit=True)
+                SP.error(errors, do_exit=False)
             return
         elif self.on_query_error:
             self.on_query_error()
         self.close()
         if print_error:
-            Log.error(errors, traceback=True, ignore_exit=False)
+            SP.error(errors, traceback=True, do_exit=True)
 
     def execute(self, query, data=[], multi=False, **kwargs):
-        class Info:
+        class ErrorInfo:
             is_error = False
             error_content = ''
-        info = Info()
+        ei = ErrorInfo()
+        ei.show = lambda: {r: ei.__getattribute__(r) for r in dir(ei)
+                           if not r.startswith('_') and not r == 'show'}
         try:
             if data:
                 self.cursor.executemany(query, data)
             else:
                 self.cursor.execute(query, multi)
         except Exception as e:
-            info.is_error = True
-            info.error_content = str(e)
+            ei.is_error = True
+            ei.error_content = str(e)
             self._handle_execution_error(e, query, **kwargs)
-        return info
+        return ei
 
     def executemany(self, query, data, **kwargs):
         return self.execute(query, data=data, **kwargs)

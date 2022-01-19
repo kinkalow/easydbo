@@ -1,5 +1,5 @@
 import os
-from easydbo.output.log import Log
+from easydbo.output.print_ import SimplePrint as SP
 
 class File:
     def find(self, file):
@@ -13,4 +13,4 @@ class File:
         elif os.path.exists(path3):
             return path3
         else:
-            Log.error(f'Does not exist file: {file}')
+            SP.error(f'Does not exist file: {file}')

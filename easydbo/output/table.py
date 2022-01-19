@@ -1,4 +1,4 @@
-from easydbo.output.log import Log
+from easydbo.output.print_ import SimplePrint as SP
 
 class TableOutput:
     @staticmethod
@@ -38,7 +38,7 @@ class TableOutput:
                             row += f'{" " * space_d0}{data_d0}{sep}'
                         row = row[:-1]
                         out += row + "\n"
-                    Log.info(out)
+                    SP.output(out)
 
     @staticmethod
     def fulltable(data_all, dbop):

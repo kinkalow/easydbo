@@ -4,20 +4,20 @@ from easydbo.init.table import TableLoader
 from easydbo.database.operation import DatabaseOperation
 from easydbo.output.table import TableOutput
 
-def facade():
+def gate():
     arguments = ArgumentSelectLoader().get()
     configs = ConfigLoader().get()
     tableop = TableLoader().get()
     dbop = DatabaseOperation(configs['database'])
 
     if arguments.main == 'alias':
-        from easydbo.main.select.alias import main
+        from .alias import main
     elif arguments.main == 'match':
-        from easydbo.main.select.match import main
+        from .match import main
     elif arguments.main == 'show_alias':
-        from easydbo.main.select.show_alias import main
+        from .show_alias import main
     elif arguments.main == 'sql':
-        from easydbo.main.select.sql import main
+        from .sql import main
 
     title, columns, rows = main(arguments, configs, tableop, dbop)
     dbop.close()

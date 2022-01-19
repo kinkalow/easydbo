@@ -7,6 +7,8 @@ _default = {
     'easydbo': {
         'verbose': 0
     },
+    'excel': {
+    },
     'database': {
         'database': '',
         'host': '',

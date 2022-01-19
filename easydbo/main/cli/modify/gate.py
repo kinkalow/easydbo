@@ -3,19 +3,19 @@ from easydbo.init.table import TableLoader
 from easydbo.database.operation import DatabaseOperation
 from easydbo.output.table import TableOutput
 
-def facade(operation):
+def gate(operation):
     if operation == 'delete':
         from easydbo.init.argument import ArgumentDeleteLoader as ArgumentLoader
-        from easydbo.main.modify.delete import main
+        from .delete import main
     elif operation == 'excel':
         from easydbo.init.argument import ArgumentExcelLoader as ArgumentLoader
-        from easydbo.main.modify.excel import main
+        from .excel import main
     elif operation == 'insert':
         from easydbo.init.argument import ArgumentInsertLoader as ArgumentLoader
-        from easydbo.main.modify.insert import main
+        from .insert import main
     elif operation == 'update':
         from easydbo.init.argument import ArgumentUpdateLoader as ArgumentLoader
-        from easydbo.main.modify.update import main
+        from .update import main
 
     arguments = ArgumentLoader().get()
     configs = ConfigLoader().get()

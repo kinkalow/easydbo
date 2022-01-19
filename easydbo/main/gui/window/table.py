@@ -1,7 +1,7 @@
 import PySimpleGUI as sg
 import re
 from easydbo.exception import EASYDBO_USER_ERROR
-from easydbo.output.log import Log
+from easydbo.output.print_ import SimplePrint as SP
 from .base import BaseWindow
 from .candidate import CandidateWindow
 from .common.command import save_table_data, execute_table_command, make_grep_command
@@ -213,7 +213,7 @@ class TableWindow(BaseWindow):
         rows_gui = self.table.get()
         rows_db = self.get_table_from_database()
         if len(rows_gui) != len(rows_db):
-            print(f'[PROGRAM ERROR] rows_gui({len(rows_gui)}) and rows_db({len(rows_db)}) have different line lengths')
+            SP.fatal_error(f'rows_gui({len(rows_gui)}) and rows_db({len(rows_db)}) have different line lengths')
         rows_large, rows_small, name_large, name_small = \
             (rows_db, rows_gui, 'DB', 'GUI') if len(rows_gui) < len(rows_db) else \
             (rows_gui, rows_db, 'GUI', 'DB')
@@ -223,10 +223,10 @@ class TableWindow(BaseWindow):
             try:
                 rows_small.pop(rows_small.index(rl))
             except ValueError:
-                print(f'[PROGRAM ERROR] Only {name_large} has {rl}')
+                SP.fatal_error(f'Only {name_large} has {rl}')
                 has_err = True
         for rs in rows_small:
-            print(f'[PROGRAM ERROR] Only {name_small} has {rs}')
+            SP.fatal_error(f'Only {name_small} has {rs}')
             has_err = True
         return has_err
 
@@ -234,14 +234,14 @@ class TableWindow(BaseWindow):
         if __debug__:
             if self._compare_tables():
                 return
-            print(f'[DEBUG] TableWindow "{self.tname}" finished without any problems')
+            SP.debug(f'TableWindow "{self.tname}" finished without any problems')
         super().close()
 
     def get_table_from_database(self):
         query = f'SELECT * FROM {self.tname};'
         ret = self.dbop.execute(query, ignore_error=True)
         if ret.is_error:
-            print(f'[Error] Something is wrong\n{ret}')
+            SP.error([f'Wrong query: {query}', ret.show()], do_exit=False)
             return self.close()
         rows = self.dbop.fetchall()
         return rows
@@ -346,7 +346,7 @@ class TableWindow(BaseWindow):
         query = f'SELECT DISTINCT({self.columns[idx]}) FROM {self.tname}'
         ret = self.dbop.execute(query)
         if ret.is_error:
-            Log.fatal_error(f'Bad query: {query}')
+            SP.fatal_error(f'Bad query: {query}')
         data = [d[0] for d in self.dbop.fetchall()]
         #-----------------------------------------------
         element = self.window[self.key_inputs[idx]]
@@ -360,7 +360,7 @@ class TableWindow(BaseWindow):
         query = f'SELECT {column_str} from {self.tname} WHERE {column_name} = "{primary_value}"'
         ret = self.dbop.execute(query)
         if ret.is_error:
-            Log.fatal_error(f'Bad querry: {query}')
+            SP.fatal_error(f'Bad querry: {query}')
         return self.dbop.fetchall()[0]
 
     def to_mysql(self, data):
@@ -383,7 +383,7 @@ class TableWindow(BaseWindow):
         table_data = self.table.get()
         table_data.insert(0, data_conv)
         self.table.update(table_data)
-        print(f'[Insert] {data}')
+        SP.info(f'Insert: {data}')
 
     def clear(self):
         for k in self.key_inputs:
@@ -423,7 +423,7 @@ class TableWindow(BaseWindow):
         self.dbop.commit()
         [table_data.pop(r - i) for i, r in enumerate(rows)]
         self.table.update(table_data)
-        [print(f'[Delete] {list(d)}') for d in data]
+        [SP.info(f'Delete: {list(d)}') for d in data]
 
     def save_as_csv(self, rows=[], is_all=False):
         if not rows and not is_all:
@@ -478,7 +478,7 @@ class TableWindow(BaseWindow):
 
     def print_cell(self, row, col):
         data = self.table.get()[row][col]
-        print(data)
+        SP.output(data)
 
     # ---> Update table by external notifications
 
@@ -492,7 +492,7 @@ class TableWindow(BaseWindow):
         for r, u in zip(rows, updates_conv):
             table_data[r] = u
         self.table.update(table_data)
-        [print(f'[Update] {update}') for update in updates]
+        [SP.info(f'Update: {update}') for update in updates]
 
     # <--- Update table by external notifications
 
@@ -578,7 +578,7 @@ class TableUpdateWindow(BaseWindow):
             if not all([self.selected_data[i] == self.table_data[r] for i, r in enumerate(self.rows)]):
                 raise EASYDBO_USER_ERROR
         except (EASYDBO_USER_ERROR, IndexError):
-            print('Error: Cannot update because table has been changed')
+            SP.error('Cannot update because table has been changed')
             self.close()
             return
 

@@ -1,7 +1,7 @@
 import argparse
 import os
 from easydbo import __version__
-#from easydbo.output.log import Log
+#from easydbo.output.print_ import SimplePrint as SP
 
 
 class Base:

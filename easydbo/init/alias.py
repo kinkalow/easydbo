@@ -1,7 +1,7 @@
 import json
 import os
 from easydbo.init.file import File
-from easydbo.output.log import Log
+from easydbo.output.print_ import SimplePrint as SP
 
 
 class AliasLoader(File):
@@ -44,7 +44,7 @@ class AliasManagerCLI(AliasLoader):
 
     def check_alias_name(self, name):
         if name not in self._get_aliasnames():
-            Log.error(f"Alias must be chosen from list: {self._get_aliasnames()}")
+            SP.error(f'Alias must be chosen from list: {self._get_aliasnames()}')
 
 
 #
@@ -107,7 +107,6 @@ class AliasPlaceholderConverter():
     def convert(self, query, values):
         for v in values:
             query = query.replace(self.mark, v, 1)
-        print(query)
         return query
 
     @ property

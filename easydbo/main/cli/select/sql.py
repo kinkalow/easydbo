@@ -1,4 +1,4 @@
-from easydbo.output.log import Log
+from easydbo.output.print_ import SimplePrint as SP
 
 def execute_query(dbop, sql):
     # Access database
@@ -7,7 +7,7 @@ def execute_query(dbop, sql):
     columns = dbop.get_current_columns()
     title = dbop.get_current_query()
     if not rows:
-        Log.info('No matching data')
+        SP.output('No matching data')
     return title, columns, rows
 
 def main(arguments, configs, tableop, dbop):

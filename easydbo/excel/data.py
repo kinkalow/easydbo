@@ -1,4 +1,4 @@
-from easydbo.output.log import Log
+from easydbo.output.print_ import SimplePrint as SP
 from easydbo import constant
 from datetime import datetime
 import openpyxl
@@ -25,7 +25,7 @@ class DataNormalizer:
                 try:
                     w[i].value = datetime.strptime(w[i].value, constant.DATE_FORMAT)
                 except ValueError:
-                    Log.error(f'"{w[i].value}" must be in the format of "{constant.DATE_FORMAT}"')
+                    SP.error(f'"{w[i].value}" must be in the format of "{constant.DATE_FORMAT}"')
         self.is_ws_changed = True
         return ws
 
@@ -44,7 +44,7 @@ class DataNormalizer:
                     if idx in self.idx_date:
                         if not cell.is_date:
                             cell_sheet = f' cell={cell.coordinate} sheet={self.sheet}' if sheet else ''
-                            Log.error(f'Not date type: value={cell.value}{cell_sheet}')
+                            SP.error(f'Not date type: value={cell.value}{cell_sheet}')
                         value = str(value.strftime(constant.DATE_FORMAT))
                     elif not isinstance(value, str):
                         value = str(value)
@@ -77,7 +77,7 @@ class DataChecker:
             targets = [v[idx] for v in vals_uniq]
             for d in data:
                 if d[idx] in targets:
-                    Log.error(f'"{col}={d[idx]}" must be unique')
+                    SP.error(f'"{col}={d[idx]}" must be unique')
 
     def null(self, table, data, except_idxes=[]):
         idxes_null = table.get_idxes_null()
@@ -88,7 +88,7 @@ class DataChecker:
                 elif i in idxes_null:
                     continue
                 elif v == constant.NAN_STR:
-                    Log.error(f'"{table.columns[i]}" filed must not be null')
+                    SP.error(f'"{table.columns[i]}" filed must not be null')
 
 def check_data(dbop, table, data, except_idxes=[]):
     dc = DataChecker(dbop)

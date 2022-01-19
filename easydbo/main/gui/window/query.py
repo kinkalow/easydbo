@@ -1,8 +1,8 @@
 import PySimpleGUI as sg
+from easydbo.output.print_ import SimplePrint as SP
 from .base import BaseWindow
 from .common.layout.attribution import Attribution as attr
 from .common.layout.filter import FilterLayout
-from .common.log import Log
 from ..manager import SubWindow
 
 class QueryResultWindow(BaseWindow):
@@ -119,15 +119,15 @@ class QueryResultWindow(BaseWindow):
             out = p.communicate()[0]
             grep_num = out.decode().rstrip('\n').split('\n')
             if grep_num == ['']:
-                print(f'No matching patten: {grep_pat}')
+                SP.info(f'No matching patten: {grep_pat}')
                 return
             new_data = [data[int(i) - 1] for i in grep_num]
         except Exception as e:
-            print(e)
+            SP.error(e)
             fp.close()
             return
         if data == new_data:
-            print(f'All data matched for patten: {grep_pat}')
+            SP.info(f'All data matched for patten: {grep_pat}')
             return
         # Show grep result on new window
         location = self.subwin.get_location()
@@ -184,7 +184,7 @@ class QuerySaveWindow(BaseWindow):
     def save(self, key):
         name = self.window[self.key_alias].get()
         if name == '':
-            return Log.miss('Set alias name')
+            return SP.miss('Set alias name')
         # Check
         idx_update = self.aliasmgr.index(name)
         if idx_update != -1:
@@ -202,7 +202,7 @@ class QuerySaveWindow(BaseWindow):
             add_or_update = 'Update'
         # Update file
         self.aliasmgr.save()
-        Log.info(f'{add_or_update} alias: {name}')
+        SP.info(f'{add_or_update} alias: {name}')
         self.close()
 
     def add(self, name, sql):

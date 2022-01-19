@@ -1,6 +1,6 @@
 import openpyxl
 from easydbo import constant
-from easydbo.output.log import Log
+from easydbo.output.print_ import SimplePrint as SP
 from easydbo.excel.data import normalize
 
 
@@ -29,7 +29,7 @@ class ExcelOperation:
                 if cell.value in self.date_column:
                     idx_date.append(idx)
         if len(set(idx_valid)) != len(idx_valid):
-            Log.error(f'Duplicate column names exist in {self.sheet}(sheet)')
+            SP.error(f'Duplicate column names exist in {self.sheet}(sheet)')
         # Data
         return normalize(idx_valid, idx_date, ws, sheet=self.sheet)
 
@@ -38,13 +38,13 @@ class ExcelOperation:
         for idx in idxes:
             d = [d[idx] for d in self.data]
             if len(set(d)) != max_len:
-                Log.error(f'{self.columns[idx]}(column) of {self.sheet}(sheet) must have unique elements')
+                SP.error(f'{self.columns[idx]}(column) of {self.sheet}(sheet) must have unique elements')
 
     def check_null(self, idxes):
         for idx in idxes:
             for d in self.data:
                 if d == constant.NAN_STR:
-                    Log.error(f'{self.columns[idx]}(column) of {self.sheet}(sheet) must not be empty')
+                    SP.error(f'{self.columns[idx]}(column) of {self.sheet}(sheet) must not be empty')
 
     def col_to_idx(self, cols):
         return [self.columns.index(c) for c in cols]

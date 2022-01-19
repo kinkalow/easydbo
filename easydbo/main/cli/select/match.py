@@ -1,6 +1,6 @@
 import re
-from easydbo.output.log import Log
-from easydbo.main.select.sql import execute_query
+from easydbo.output.print_ import SimplePrint as SP
+from .sql import execute_query
 
 _VIEW_PREFIX = '__easydbo_tmpview'
 
@@ -23,7 +23,7 @@ def _guess_tables(tableop, str_):
             cand_cols.append(nc)
     for n in cand_tnames:
         if n and n not in tname1d:
-            Log.error(f'Table "{n}" does not exist')
+            SP.error(f'Table "{n}" does not exist')
 
     # Filter candidates
     tnames = []
@@ -56,7 +56,7 @@ def _sort_tables_in_join_order(tnames, tableop):
                 orders.append(cand)
                 break
         else:
-            Log.error(f'{tnames} tables do not have common column names')
+            SP.error(f'{tnames} tables do not have common column names')
     if orders != list(range(len(col2d))):
         tnames = [tnames[i] for i in orders]
     return tnames
@@ -144,7 +144,7 @@ def main(arguments, configs, tableop, dbop):
             cols = arg_cols[1:].split(',')
             for tname in cols:
                 if tname not in all_tnames:
-                    Log.error('{tname} table does not exist')
+                    SP.error('{tname} table does not exist')
                 if tname not in tnames:
                     tnames.append(tname)
             sql_select = 'SELECT *'
@@ -160,7 +160,7 @@ def main(arguments, configs, tableop, dbop):
 
     # Exit if no table name
     if not tnames:
-        Log.error('Could not guess table names')
+        SP.error('Could not guess table names')
 
     # No need to join if only one table name
     if len(tnames) == 1:

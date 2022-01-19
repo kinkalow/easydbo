@@ -1,5 +1,5 @@
 import hashlib
-from easydbo.output.log import Log
+from easydbo.output.print_ import SimplePrint as SP
 
 class HashCreator:
     def __init__(self):
@@ -9,7 +9,7 @@ class HashCreator:
         data1d = [self.separator.join(li) for li in data2d]
         hash1d = [hashlib.sha256(bytes(data, encoding='utf8')).hexdigest() for data in data1d]
         if len(hash1d) != len(set(hash1d)):
-            Log.error(['Hash is not unique',
+            SP.error(['Hash is not unique',
                        f'len(hash1): {len(hash1d)}',
                        f'len(set(hash1d)): {len(set(hash1d))}',
                        f'data: {data1d}',

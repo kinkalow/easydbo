@@ -1,7 +1,7 @@
 import json
 import re
 from easydbo.init.file import File
-from easydbo.output.log import Log
+from easydbo.output.print_ import SimplePrint as SP
 
 
 class TableLoader(File):
@@ -37,7 +37,7 @@ class TableOperator():
                         cols.append(t.fullcolumns) if full else cols.append(t.columns)
                         break
                 else:
-                    Log.error(f'"{tgt}" is not table name')
+                    SP.error(f'"{tgt}" is not table name')
             return cols
 
     def get_same_column_names(self):
@@ -73,7 +73,7 @@ class TableOperator():
     #            if tc in c:
     #                target_tnames[i].append(tnames[j])
     #        if not target_tnames[i]:
-    #            Log.error(f'"{tc}" is not in columns')
+    #            SP.error(f'"{tc}" is not in columns')
     #    return target_tnames  # 2D_list
 
     # <---
@@ -82,7 +82,7 @@ class TableOperator():
         tnames = [t.name for t in self.tables]
         idx = tnames.index(target)
         if idx == -1:
-            Log.error(f'Sheet name must be one of the following: {tnames}')
+            SP.error(f'Sheet name must be one of the following: {tnames}')
         return idx
 
 
@@ -123,9 +123,9 @@ class Table:
     def _get_pk(self, name, cols, attrs):
         match = [(i, c) for i, (c, a) in enumerate(zip(cols, attrs)) if re.search(r'PRIMARY\s+KEY', a)]
         if len(match) != 1:
-            Log.error(f'Table "{name}" must have one "PRIMARY KEY"')
+            SP.error(f'Table "{name}" must have one "PRIMARY KEY"')
         if match[0][0] != 0:
-            Log.error('First column must have PRIMARY KEY')
+            SP.error('First column must have PRIMARY KEY')
         return match[0][0], match[0][1]
 
     #def _get_auto_pk_info(self, pkidx, pk):
@@ -182,7 +182,7 @@ class Table:
     def has_columns(self, columns):
         for c in columns:
             if c not in self.columns:
-                Log.error(f'{c} is not in {self.columns}')
+                SP.error(f'{c} is not in {self.columns}')
 
     # <---
     # Property --->

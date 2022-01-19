@@ -1,5 +1,5 @@
 from easydbo.init.alias import AliasManagerCLI
-from easydbo.output.log import Log
+from easydbo.output.print_ import SimplePrint as SP
 
 def main(arguments, configs, tableop, dbop):
     aliasmgr = AliasManagerCLI()
@@ -7,7 +7,7 @@ def main(arguments, configs, tableop, dbop):
     # Check
     tgt_alias_name = arguments.name
     if not tgt_alias_name:
-        Log.error('--alias option is required at this time')
+        SP.error('--alias option is required at this time')
     aliasmgr.check_alias_name(tgt_alias_name)
 
     # Access database
