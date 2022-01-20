@@ -1,12 +1,11 @@
 import PySimpleGUI as sg
-import re
 from easydbo.exception import EASYDBO_USER_ERROR
 from easydbo.output.print_ import SimplePrint as SP
 from .base import BaseWindow
 from .candidate import CandidateWindow
-from .common.command import save_table_data, execute_table_command, make_grep_command
 from .common.layout.attribution import Attribution as attr
 from .common.layout.filter import FilterLayout
+from .common.layout.table import TableAllLayout, TableSelectedLayout, TableRightClick, TableClick, TableDoubleClick
 from ..manager import SubWindow
 
 
@@ -18,9 +17,6 @@ class TableWindow(BaseWindow):
         self.dbop = pack.dbop
         self.columns = pack.tableop.get_columns([tname], full=True)[0]
         self.cfg = cfg = pack.configs.table_window
-        #self.types = pack.tableop.get_types([tname])[0]
-        self.sort_reverse = True
-        self.rightclick_location = (-1, -1)
         #
         self.filter_windows = None
         #
@@ -43,25 +39,9 @@ class TableWindow(BaseWindow):
         self.key_printall = f'{prefkey}printall'
         self.key_greprun = f'{prefkey}grepbtn'
         self.key_greptext = f'{prefkey}greptext'
-        self.key_copypasterow = f'{prefkey}copypasterow'
-        self.key_saveselected = f'{prefkey}saveselected'
-        self.key_printselected = f'{prefkey}printselected'
-        #self.key_shellcmd_enter = f'{self.key_greptext}.enter'  # bind
         self.key_update = f'{prefkey}update'
         self.key_delete = f'{prefkey}delete'
         self.key_table = f'{prefkey}table'
-        self.key_table_rightclick = f'{self.key_table}.rightclick'  # bind
-        self.key_table_doubleclick = f'{self.key_table}.doubleclick'  # bind
-        #
-        self.key_rightclick_cell_copypaste = '[Cell] CopyPaste'
-        self.key_rightclick_cell_print = '[Cell] Print'
-        self.key_rightclick_row_copypaste = '[Row] CopyPaste'
-        self.key_rightclick_row_print = '[Row] Print'
-        self.key_rightclick_selected_copypaste = '[Selected] CopyPaste'
-        self.key_rightclick_selected_print = '[Selected] Print'
-        self.key_rightclick_selected_save = '[Selected] Save'
-        self.key_rightclick_all_print = '[All] Print'
-        self.key_rightclick_all_save = '[All] Save'
 
         #
         # Layout
@@ -84,57 +64,29 @@ class TableWindow(BaseWindow):
         self.filter_layout = FilterLayout(prefkey, self.columns, self.key_table, pack.dbop, query)
         layout_filter = self.filter_layout.layout
 
-        # layout_all
-        layout_all = []
-        if cfg.enable_all_save:
-            layout_all.append(sg.Button('Save', **attr.base_button_with_color_safety, key=self.key_saveall))
-        if cfg.enable_all_print:
-            layout_all.append(sg.Button('Print', **attr.base_button_with_color_safety, key=self.key_printall))
-        if cfg.enable_all_greprun:
-            layout_all.append(sg.Button('GrepRun', **attr.base_button_with_color_safety, key=self.key_greprun))
-            layout_all.append(sg.InputText('', **attr.base_inputtext, key=self.key_greptext))
-        if layout_all:
-            layout_all = [sg.Frame('All', [layout_all], title_location=sg.TITLE_LOCATION_RIGHT)]
+        # layout_table_all
+        self.table_all_layout = TableAllLayout(
+            prefkey, enable_save=cfg.enable_all_save,
+            enable_print=cfg.enable_all_print, enable_greprun=cfg.enable_all_greprun)
+        layout_table_all = self.table_all_layout.layout
 
-        # layout_selected
-        layout_selected = []
-        if cfg.enable_selected_copypaste:
-            layout_selected.append(sg.Button('CopyPaste', **attr.base_button_with_color_safety, key=self.key_copypasterow))
-        if cfg.enable_selected_save:
-            layout_selected.append(sg.Button('Save', **attr.base_button_with_color_safety, key=self.key_saveselected))
-        if cfg.enable_selected_print:
-            layout_selected.append(sg.Button('Print', **attr.base_button_with_color_safety, key=self.key_printselected))
-        layout_selected += [sg.Button('Update', **attr.base_button_with_color_warning, key=self.key_update),
-                            sg.Button('Delete', **attr.base_button_with_color_danger, key=self.key_delete)]
-        layout_selected = [sg.Frame('Selected', [layout_selected], title_location=sg.TITLE_LOCATION_RIGHT)],
+        # layout_table_selected
+        self.table_selected_layout = TableSelectedLayout(
+            prefkey, self.key_table, enable_copypaste=cfg.enable_selected_copypaste,
+            enable_save=cfg.enable_selected_save, enable_print=cfg.enable_selected_print, enable_frame=False)
+        layout_table_selected = self.table_selected_layout.layout
+        layout_table_selected += [sg.Button('Update', **attr.base_button_with_color_warning, key=self.key_update),
+                                  sg.Button('Delete', **attr.base_button_with_color_danger, key=self.key_delete)]
+        layout_table_selected = [sg.Frame('Selected', [layout_table_selected], title_location=sg.TITLE_LOCATION_RIGHT)],
 
         # layout_table
-        separator_line = '-' * 30
-        self.rightclick_commands = rc_cmds = []
-        if cfg.enable_rightclick_cell_copypaste:
-            rc_cmds.append(self.key_rightclick_cell_copypaste)
-        if cfg.enable_rightclick_cell_print:
-            rc_cmds.append(self.key_rightclick_cell_print)
-        if cfg.enable_rightclick_cell_copypaste or cfg.enable_rightclick_cell_print:
-            rc_cmds.append(separator_line)
-        if cfg.enable_rightclick_row_copypaste:
-            rc_cmds.append(self.key_rightclick_row_copypaste)
-        if cfg.enable_rightclick_row_print:
-            rc_cmds.append(self.key_rightclick_row_print)
-        if cfg.enable_rightclick_row_copypaste or cfg.enable_rightclick_row_print:
-            rc_cmds.append(separator_line)
-        if cfg.enable_rightclick_selected_copypaste:
-            rc_cmds.append(self.key_rightclick_selected_copypaste)
-        if cfg.enable_rightclick_selected_print:
-            rc_cmds.append(self.key_rightclick_selected_print)
-        if cfg.enable_rightclick_selected_save:
-            rc_cmds.append(self.key_rightclick_selected_save)
-        if cfg.enable_rightclick_selected_copypaste or cfg.enable_rightclick_selected_print or cfg.enable_rightclick_selected_save:
-            rc_cmds.append(separator_line)
-        if cfg.enable_rightclick_all_print:
-            rc_cmds.append(self.key_rightclick_all_print)
-        if cfg.enable_rightclick_all_save:
-            rc_cmds.append(self.key_rightclick_all_save)
+        self.table_rightclick = TableRightClick(
+            self.key_table,
+            enable_cell_copypaste=cfg.enable_rightclick_cell_copypaste, enable_cell_print=cfg.enable_rightclick_cell_print,
+            enable_row_copypaste=cfg.enable_rightclick_row_copypaste, enable_row_print=cfg.enable_rightclick_row_print,
+            enable_selected_copypaste=cfg.enable_rightclick_selected_copypaste, enable_selected_print=cfg.enable_rightclick_selected_print, enable_selected_save=cfg.enable_rightclick_selected_save,
+            enable_all_print=cfg.enable_rightclick_all_print, enable_all_save=cfg.enable_rightclick_all_save)
+        menu = self.table_rightclick.menu
         layout_table = [
             [sg.Table(
                 self.get_table_from_database(),
@@ -143,7 +95,7 @@ class TableWindow(BaseWindow):
                 headings=self.columns,
                 col_widths=[20 for _ in range(len(self.columns))],
                 enable_click_events=True,
-                right_click_menu=['&Right', rc_cmds] if rc_cmds else None,
+                right_click_menu=['&Right', menu] if menu else None,
                 expand_y=True,
             )],
         ]
@@ -151,8 +103,8 @@ class TableWindow(BaseWindow):
         layout = [
             layout_insert,
             layout_filter,
-            layout_all,
-            layout_selected,
+            layout_table_all,
+            layout_table_selected,
             layout_table,
         ]
 
@@ -168,19 +120,18 @@ class TableWindow(BaseWindow):
             resizable=True,
             size=(1300, 1000),
         )
-        # Pass widnow
-        self.filter_layout.set_window(self._window)
+        # Table
+        self.table = self.window[self.key_table]
+        self.table_click = TableClick(self.key_table, self.table)
+        self.table_doubleclick = TableDoubleClick(self.key_table, self.table)
+        # Call set method
+        self.filter_layout.set(self._window)
+        self.table_all_layout.set(self.table)
+        self.table_rightclick.set(self.table, window=self._window, key_inputs=self.key_inputs)  # window and key_inputs are for copypaste
+        self.table_selected_layout.set(self.table, window=self._window, key_inputs=self.key_inputs)  # window and key_inputs are for copypaste
         # Subwindows
         subwin_names = [self.key_description] + self.key_candidates + [self.key_update]
         self.subwin = SubWindow(self.window, subwin_names)
-
-        # Table
-        self.table = self.window[self.key_table]
-
-        # Bind
-        self.window[self.key_table].bind('<Button-3>', f'.{self.key_table_rightclick.split(".")[-1]}')
-        self.window[self.key_table].bind('<Double-Button-1>', f'.{self.key_table_doubleclick.split(".")[-1]}')
-        #self.window[self.key_greptext].bind('<Enter>', f'.{self.key_shellcmd_enter.split(".")[-1]}')  # Slow
 
     def _get_description_and_textcolor(self, dbop, tname, num_columns):
         # Description
@@ -250,14 +201,8 @@ class TableWindow(BaseWindow):
 
     def handle(self, event, values):
         if isinstance(event, tuple):
-            if event[0:2] == (self.key_table, '+CICKED+'):  # On table
-                row, col = event[2]
-                if row == -1:  # True when header line clicked
-                    self.sort(col)
-                #else:
-                #    self.input_row(row - 1)
-            return
-        if event in self.key_description:
+            self.table_click.handle(event, values)
+        elif event in self.key_description:
             self.open_table_infomation_window(event)
         elif event in self.key_candidates:
             self.open_candidate_window(event)
@@ -267,69 +212,18 @@ class TableWindow(BaseWindow):
             self.clear()
         elif event.startswith(self.filter_layout.prefkey):
             self.filter_layout.handle(event, values)
-        elif event == self.key_saveall:
-            self.save_as_csv(is_all=True)
-        elif event == self.key_printall:
-            self.print_rows(is_all=True)
-        #elif event == self.key_greprun or event == self.key_shellcmd_enter:
-        elif event == self.key_greprun:
-            self.greprun(values[self.key_greptext])
-        elif event == self.key_copypasterow:
-            rows = values[self.key_table]
-            if rows:
-                self.copypaste_row(rows[0])
-        elif event == self.key_saveselected:
-            self.save_as_csv(rows=values[self.key_table])
-        elif event == self.key_printselected:
-            self.print_rows(rows=values[self.key_table])
+        elif event.startswith(self.table_all_layout.prefkey):
+            self.table_all_layout.handle(event, values)
+        elif event.startswith(self.table_selected_layout.prefkey):
+            self.table_selected_layout.handle(event, values)
         elif event == self.key_update:
             self.update(event, values)
         elif event == self.key_delete:
             self.delete(values)
-        elif event == self.key_table_rightclick:
-            e = self.table.user_bind_event
-            region = self.table.Widget.identify_region(e.x, e.y)
-            if region == 'heading' or region == 'cell':
-                # row and col starts from 1
-                # row = 0 means header line
-                row = self.table.Widget.identify_row(e.y)
-                row = int(row) if row else 0
-                col = int(self.table.Widget.identify_column(e.x).replace('#', ''))
-                self.rightclick_location = (row, col)
-            else:
-                self.rightclick_location = (-1, -1)
-        elif event in self.rightclick_commands:
-            if self.rightclick_location == (-1, -1):
-                return
-            row, col = self.rightclick_location[0] - 1, self.rightclick_location[1] - 1
-            if row == -1:  # Ignore header line
-                return
-            # Cell
-            if event == self.key_rightclick_cell_copypaste:
-                self.copypaste_cell(row, col)
-            elif event == self.key_rightclick_cell_print:
-                self.print_cell(row, col)
-            # Row
-            elif event == self.key_rightclick_row_copypaste:
-                self.copypaste_row(row)
-            elif event == self.key_rightclick_row_print:
-                self.print_rows(rows=[row])
-            # Selected
-            elif event == self.key_rightclick_selected_copypaste:
-                rows = values[self.key_table]
-                if rows:
-                    self.copypaste_row(rows[0])
-            elif event == self.key_rightclick_selected_print:
-                self.print_rows(rows=values[self.key_table])
-            elif event == self.key_rightclick_selected_save:
-                self.save_as_csv(rows=values[self.key_table])
-            # All
-            elif event == self.key_rightclick_all_print:
-                self.print_rows(is_all=True)
-            elif event == self.key_rightclick_all_save:
-                self.save_as_csv(is_all=True)
-        elif event == self.key_table_doubleclick:
-            self.print_rows(rows=values[self.key_table])
+        elif event == self.table_doubleclick.key:
+            self.table_doubleclick.handle(event, values)
+        elif event == self.table_rightclick.key or event in self.table_rightclick.menu:
+            self.table_rightclick.handle(event, values)
 
     # <--- handle
 
@@ -389,11 +283,6 @@ class TableWindow(BaseWindow):
         for k in self.key_inputs:
             self.window[k].update('')
 
-    def copypaste_row(self, row):
-        data = self.table.get()[row]
-        for k, d in zip(self.key_inputs, data):
-            self.window[k].update(d)
-
     def update(self, key, values):
         rows = sorted(values[self.key_table])
         if not rows:
@@ -424,61 +313,6 @@ class TableWindow(BaseWindow):
         [table_data.pop(r - i) for i, r in enumerate(rows)]
         self.table.update(table_data)
         [SP.info(f'Delete: {list(d)}') for d in data]
-
-    def save_as_csv(self, rows=[], is_all=False):
-        if not rows and not is_all:
-            return
-        path = sg.popup_get_file('Save', save_as=True, no_window=True, file_types=(('CSV', '.csv'),))
-        if not path:
-            return
-        data = self.table.get()
-        if not is_all:
-            data = [data[r] for r in rows]
-        save_table_data(path, self.table.ColumnHeadings, data)
-
-    # ---> use shell command
-
-    def _get_columns_data(self, columns, data):
-        columns = columns if columns else self.table.ColumnHeadings
-        data = data if data != [[]] else self.table.get()
-        return columns, data
-
-    def greprun(self, patten, columns=[], data=[[]], delimiter=',', show_command=True):
-        patten = make_grep_command(patten)
-        if not patten or re.search(r'>', patten):  # Prevent redirection
-            return
-        columns, data = self._get_columns_data(columns, data)
-        cmd = f'column -t -s {delimiter} {{path}} | {patten}'
-        execute_table_command(cmd, columns, data, delimiter, show_command)
-
-    def prettyrun(self, columns=[], data=[[]], delimiter=',', show_command=False):
-        columns, data = self._get_columns_data(columns, data)
-        cmd = f'column -t -s {delimiter} {{path}}'
-        execute_table_command(cmd, columns, data, delimiter, show_command)
-
-    def print_rows(self, rows=[], is_all=False):
-        if not rows and not is_all:
-            return
-        data = self.table.get()
-        if not is_all:
-            data = [data[r] for r in rows]
-        self.prettyrun(data=data)
-
-    # <--- use shell command
-
-    def sort(self, idx_column):
-        table_data = self.table.get()
-        table_data.sort(key=lambda k: k[idx_column], reverse=self.sort_reverse)
-        self.table.update(table_data)
-        self.sort_reverse = not self.sort_reverse
-
-    def copypaste_cell(self, row, col):
-        data = self.table.get()[row][col]
-        self.window[self.key_inputs[col]].update(data)
-
-    def print_cell(self, row, col):
-        data = self.table.get()[row][col]
-        SP.output(data)
 
     # ---> Update table by external notifications
 

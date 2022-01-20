@@ -2,24 +2,25 @@ import re
 import PySimpleGUI as sg
 from easydbo.output.print_ import SimplePrint as SP
 from .attribution import Attribution as attr
+from .base import BaseLayout
 
-class FilterLayout():
-    def __init__(self, prefix_key, columns, key_table, dbop, query, display_columns=False):
+class FilterLayout(BaseLayout):
+    def __init__(self, caller_prefkey, columns, key_table, dbop, query, display_columns=False, enable_frame=True):
         """
-        prefix_key         : str        : Prefix for key
-        columns            : List(str)  : List with column names as elements
-        key_table          : str        : Key for sg.Table
-        dbop               : object     : Database operation object
-        query              : str        : Query database to restore original data
+        caller_prefkey: str      : Caller prefix key
+        columns       : List(str): List with column names as elements
+        key_table     : str      : Key for sg.Table
+        dbop          : object   : Database operation object
+        query         : str      : Query database to restore original data
 
-        NOTE: Caller must call self.set_window method of callee
+        NOTE: Caller must call self.set()
         """
         self.columns = columns
         self.query = query
         self.key_table = key_table
         self.dbop = dbop
 
-        self.prefkey = prefkey = f'{prefix_key}filter.'
+        prefkey = f'{caller_prefkey}filter.'
         self.key_inputs = [f'{prefkey}{c}.input' for c in columns]
         self.key_filter = f'{prefkey}filter'
         self.key_clear = f'{prefkey}clear'
@@ -41,12 +42,14 @@ class FilterLayout():
         ] + [column_names] + [
             [sg.InputText('', **attr.base_inputtext_with_size, key=self.key_inputs[i]) for i in range(len(columns))]
         ]
-        layout = [sg.Frame('', layout)]
-        #layout = [sg.Frame('Filter', layout, title_location=sg.TITLE_LOCATION_RIGHT)]
+        if enable_frame:
+            layout = [sg.Frame('Filter', layout, title_location=sg.TITLE_LOCATION_RIGHT)]
+            #layout = [sg.Frame('', layout)]
 
-        self.layout = layout
+        self._prefkey = prefkey
+        self._layout = layout
 
-    def set_window(self, window):
+    def set(self, window):
         self.window = window
 
     def handle(self, event, values):
