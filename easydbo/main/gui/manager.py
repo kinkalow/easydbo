@@ -18,20 +18,10 @@ class WindowManager():
     def windows(self):
         return self._windows
 
-
 class SubWindow:
     def __init__(self, main_window, names):
         self.main_window = main_window
         self.sub_windows = {n: None for n in names}
-
-    def get_location(self, widgetkey='', widgetx=False, widgety=False, dx=0, dy=0):
-        if not widgetx or not widgety:
-            x, y = self.main_window.CurrentLocation()
-        if widgetx:
-            x = self.main_window[widgetkey].Widget.winfo_rootx()
-        if widgety:
-            y = self.main_window[widgetkey].Widget.winfo_rooty()
-        return (x + dx, y + dy)
 
     def create_multiples(self, window_class, *args, **kwargs):
         winobj = window_class(*args, **kwargs)

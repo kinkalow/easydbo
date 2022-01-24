@@ -5,7 +5,9 @@ from easydbo.exception import EASYDBO_GOTO_LOOP, EASYDBO_USER_ERROR
 from .alias import AliasWindow
 from .base import BaseWindow
 from .common.layout.attribution import Attribution as attr
+from .common.popup import popup_error
 from .common.sql import create_query_result_window
+from .common.util import get_location
 from .table import TableWindow
 from ..manager import SubWindow
 
@@ -57,14 +59,14 @@ class MainWindow(BaseWindow):
 
     def open_table(self, key):
         tname = key.split('.')[-1]
-        location = self.subwin.get_location(dy=80)
+        location = get_location(self.window, dy=80)
         self.subwin.create_unique(key, TableWindow, tname, self.pack, location)
 
     def alias(self, key, location=None, size=None):
         # NOTE: This method is also invoked in AliasWindow class
         #     : location and size arugements are defined in AliasWindow class
         if not location:
-            location = self.subwin.get_location(widgetkey=self.key_alias, widgety=True, dy=60)
+            location = get_location(self.window, keyy=self.key_alias, dy=80)
         alias_method = functools.partial(self.alias, key)
         self.subwin.create_unique(key, AliasWindow, self.pack, location, alias_method, size=size)
 
@@ -183,11 +185,11 @@ class FullJoinLayout():
         elif event == self.key_query:
             self.query(values_rmv)
 
-    def create_query(self, values):
+    def create_query(self, values, key=None):
         # Do nothing if none of checkboxes are selected
         cbs = [k for k, v in values.items() if k.endswith('.checkbox') and v]  # k='prefkey.table.column.suffix'
         if not cbs:
-            raise EASYDBO_GOTO_LOOP('Checkboxes are not selected.')
+            popup_error('No checkbox selected', get_location(self.window, key=key if key else self.key_show))
 
         # Processing relating to selected checkboxes and inputted texts
         cb_tbls = [c.split('.')[1] for c in cbs]
@@ -212,7 +214,7 @@ class FullJoinLayout():
 
     def show(self, sql_select, sql_from, sql_where, sql_others=''):
         query = f'{sql_select} {sql_from} {sql_where} {sql_others}'.rstrip() + ';'
-        location = self.subwin.get_location(dy=30)
+        location = get_location(self.window, dy=30)
         create_query_result_window(query, self.pack, self.subwin, location)
 
     def check_checkboxes(self, values, true_or_false):
@@ -226,7 +228,7 @@ class FullJoinLayout():
                 self.window[k].Update(value='')
 
     def create_clause(self, values):
-        sql_select, sql_from, sql_where = self.create_query(values)
+        sql_select, sql_from, sql_where = self.create_query(values, key=self.key_create)
         sql_select = re.sub('^SELECT', '', sql_select).strip()
         sql_from = re.sub('^FROM', '', sql_from).strip()
         sql_where = re.sub('^WHERE', '', sql_where).strip()

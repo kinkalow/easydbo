@@ -2,6 +2,9 @@ import PySimpleGUI as sg
 from .base import BaseLayout
 from easydbo.main.gui.window.common.layout.attribution import Attribution as attr
 from easydbo.main.gui.window.common.action.table import copypaste_cell, copypaste_row, greprun, print_cell, print_rows, save_as_csv, sort
+from easydbo.main.gui.window.common.popup import popup_error
+from easydbo.main.gui.window.common.util import get_location
+
 
 class TableAllLayout(BaseLayout):
     def __init__(self, caller_prefkey, enable_save=True, enable_print=True, enable_greprun=True, enable_frame=True):
@@ -74,9 +77,10 @@ class TableSelectedLayout(BaseLayout):
 
     def handle(self, event, values):
         rows = values[self.key_table]
+        if not rows and event in (self.key_copypasterow, self.key_saveselected, self.key_printselected):
+            popup_error('Not selected', get_location(self.window, event))
         if event == self.key_copypasterow:
-            if rows:
-                copypaste_row(self.table, self.window, self.key_inputs, rows[0])
+            copypaste_row(self.table, self.window, self.key_inputs, rows[0])
         if event == self.key_saveselected:
             save_as_csv(self.table, rows)
         elif event == self.key_printselected:

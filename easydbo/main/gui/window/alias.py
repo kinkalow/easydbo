@@ -1,8 +1,9 @@
 import PySimpleGUI as sg
-from easydbo.output.print_ import SimplePrint as SP
 from .base import BaseWindow
 from .common.layout.attribution import Attribution as attr
+from .common.popup import popup_error
 from .common.sql import create_query_result_window
+from .common.util import get_location
 from ..manager import SubWindow
 
 
@@ -74,7 +75,7 @@ class AliasWindow(BaseWindow):
 
     def reload(self):
         if self.aliasmgr.is_modified():
-            location = self.subwin.get_location()
+            location = get_location(self.window)
             size = self.window.Size
             self.close()
             self.parent_alias_method(location=location, size=size)
@@ -89,8 +90,8 @@ class AliasWindow(BaseWindow):
             phvals = [self.window[k].get() for k in key_phs]
             for v in phvals:
                 if not v:
-                    return SP.miss(f'Missing placeholder values for alias({key.split(".")[1]})')
+                    popup_error('Missing placeholders', get_location(self.window, key))
             query = self.phconv.convert(query, phvals)
         # Create window
-        location = self.subwin.get_location(widgetkey=key, widgetx=True, widgety=True, dy=60)
+        location = get_location(self.window, key=key, dy=70)
         create_query_result_window(query, self.pack, self.subwin, location)
