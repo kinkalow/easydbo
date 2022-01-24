@@ -9,14 +9,14 @@
   },
   {
     "name": "fastq",
-    "query": "SELECT cancer_path as fastq, human_sex as sex FROM human as h JOIN cancer as c ON h.human_id = c.human_id;"
+    "query": "SELECT cancer_path, human_sex FROM human JOIN cancer ON human.human_id = cancer.human_id;"
   },
   {
-    "name": "manfastq",
-    "query": "SELECT cancer_path as man_fastq FROM human as h JOIN cancer as c ON h.human_id = c.human_id WHERE h.human_sex = 'man';"
+    "name": "fastq_man",
+    "query": "SELECT cancer_path FROM human JOIN cancer ON human.human_id = cancer.human_id WHERE human.human_sex = 'man';"
   },
   {
-    "name": "?fastq",
-    "query": "SELECT ? FROM human as h JOIN cancer as c ON h.human_id = c.human_id WHERE h.human_sex = '?';"
+    "name": "fastq_?",
+    "query": "SELECT ? FROM human JOIN cancer ON human.human_id = cancer.human_id WHERE human.human_sex = '?';"
   }
 ]

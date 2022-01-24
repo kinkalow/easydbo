@@ -4,6 +4,8 @@ from .base import BaseWindow
 from .common.layout.attribution import Attribution as attr
 from .common.layout.filter import FilterLayout
 from .common.layout.table import TableAllLayout, TableSelectedLayout, TableRightClick, TableClick, TableDoubleClick
+from .common.popup import popup_error
+from .common.util import get_location
 from ..manager import SubWindow
 
 class QueryResultWindow(BaseWindow):
@@ -118,7 +120,7 @@ class QueryResultWindow(BaseWindow):
             self.table_rightclick.handle(event, values)
 
     def add_alias(self, key):
-        location = self.subwin.get_location(widgetkey=key, widgety=True, dy=60)
+        location = get_location(self.window, keyy=key, dy=70)
         self.subwin.create_unique(key, QuerySaveWindow, self.pack, self.query, location)
 
 
@@ -156,8 +158,6 @@ class QuerySaveWindow(BaseWindow):
             size=(1300, 500),
         )
 
-        self.subwin = SubWindow(self.window, [self.key_save])
-
     def handle(self, event, values):
         if event == self.key_save:
             self.save(event)
@@ -167,11 +167,11 @@ class QuerySaveWindow(BaseWindow):
     def save(self, key):
         name = self.window[self.key_alias].get()
         if name == '':
-            return SP.miss('Set alias name')
+            popup_error('Missing alias name', get_location(self.window, key=key))
         # Check
         idx_update = self.aliasmgr.index(name)
         if idx_update != -1:
-            loc = self.subwin.get_location(widgetkey=key, widgetx=True, widgety=True)
+            loc = get_location(self.window, key=key)
             ret = sg.popup_ok_cancel('Overwrite alias?', keep_on_top=True, location=loc)
             if ret == 'Cancel':
                 return

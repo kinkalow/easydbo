@@ -13,9 +13,6 @@ class EASYDBO_BASE_ERROR(Exception):
             ms[i] = ' ' * (len(self.prompt) + 1) + ms[i]
         return '\n'.join(ms)
 
-class EASYDBO_GOTO_LOOP(EASYDBO_BASE_ERROR):
-    def __init__(self, message=''):
-        super().__init__('[ERROR]', message)
 
 class EASYDBO_FATAL_ERROR(EASYDBO_BASE_ERROR):
     def __init__(self, message=''):
@@ -23,6 +20,15 @@ class EASYDBO_FATAL_ERROR(EASYDBO_BASE_ERROR):
 
     def __str__(self):
         return '\n' + super().__str__()
+
+
+class EASYDBO_GOTO_LOOP(Exception):
+    def __init__(self, message=''):
+        self.message = message
+
+    def __str__(self):
+        return self.message
+
 
 class EASYDBO_USER_ERROR(Exception):
     pass

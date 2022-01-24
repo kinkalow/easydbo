@@ -36,4 +36,6 @@ class Application():
                 elif window in self.winmgr.windows:
                     self.winmgr.windows[window].handle(event, values)
             except EASYDBO_GOTO_LOOP as e:
-                SP.error(e, do_exit=False)
+                message = str(e)
+                if message:
+                    SP.error(str(e), do_exit=False)

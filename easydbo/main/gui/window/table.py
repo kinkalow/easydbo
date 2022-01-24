@@ -6,6 +6,8 @@ from .candidate import CandidateWindow
 from .common.layout.attribution import Attribution as attr
 from .common.layout.filter import FilterLayout
 from .common.layout.table import TableAllLayout, TableSelectedLayout, TableRightClick, TableClick, TableDoubleClick
+from .common.popup import popup_error
+from .common.util import get_location
 from ..manager import SubWindow
 
 
@@ -217,7 +219,7 @@ class TableWindow(BaseWindow):
         elif event.startswith(self.table_selected_layout.prefkey):
             self.table_selected_layout.handle(event, values)
         elif event == self.key_update:
-            self.update(event, values)
+            self.update(values)
         elif event == self.key_delete:
             self.delete(values)
         elif event == self.table_doubleclick.key:
@@ -229,7 +231,7 @@ class TableWindow(BaseWindow):
 
     def open_table_infomation_window(self, key):
         columns, data = self._desc_col_data
-        location = self.subwin.get_location(widgetkey=key, widgety=True, dy=150)
+        location = get_location(self.window, keyy=key, dy=150)
         self.subwin.create_unique(key, TableDescriptionWindow, self.pack, self.tname, columns, data, location)
 
     def open_candidate_window(self, key):
@@ -244,7 +246,7 @@ class TableWindow(BaseWindow):
         data = [d[0] for d in self.dbop.fetchall()]
         #-----------------------------------------------
         element = self.window[self.key_inputs[idx]]
-        location = self.subwin.get_location(widgetkey=self.key_inputs[idx], widgetx=True, widgety=True, dy=30)
+        location = get_location(self.window, key=self.key_inputs[idx], dy=35)
         self.subwin.create_unique(key, CandidateWindow, data, self.pack, element, location)
 
     def get_fields(self, primary_value):
@@ -283,22 +285,22 @@ class TableWindow(BaseWindow):
         for k in self.key_inputs:
             self.window[k].update('')
 
-    def update(self, key, values):
+    def update(self, values):
         rows = sorted(values[self.key_table])
         if not rows:
-            return
+            popup_error('Not selected', get_location(self.window, self.key_update))
         table_data = self.table.get()
         data = [table_data[r] for r in rows]
-        location = self.subwin.get_location(widgetkey=self.key_update, widgety=True, dy=60)
-        self.subwin.create_unique(key, TableUpdateWindow, self, self.pack, rows, self.tname, self.columns, data, table_data, location)
+        location = get_location(self.window, keyy=self.key_update, dy=70)
+        self.subwin.create_unique(self.key_update, TableUpdateWindow, self, self.pack, rows, self.tname, self.columns, data, table_data, location)
 
     def delete(self, values):
         rows = sorted(values[self.key_table])
         if not rows:
-            return
+            popup_error('Not selected', get_location(self.window, self.key_delete))
         # Confirm deletion
         if self.cfg.confirm_deletion:
-            loc = self.subwin.get_location(widgetkey=self.key_delete, widgetx=True, widgety=True)
+            loc = get_location(self.window, key=self.key_delete)
             ret = sg.popup_ok_cancel('Delete selected rows?', keep_on_top=True, location=loc)
             if ret == 'Cancel':
                 return
