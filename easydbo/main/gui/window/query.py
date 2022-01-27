@@ -18,13 +18,13 @@ class QueryResultWindow(BaseWindow):
         length = len(columns[0])
 
         self.prefkey = prefkey = self.make_prefix_key('result', timestamp=True)
-        self.key_querybtn = f'{prefkey}querybutton'
+        self.key_querysavebtn = f'{prefkey}querysavebutton'
         self.key_querytxt = f'{prefkey}querytext'
         self.key_table = f'{prefkey}table'
 
         # layout_query_button
         layout_query_button = [
-            sg.Button('Query', **attr.base_button_with_color_safety, key=self.key_querybtn),
+            sg.Button('Save', **attr.base_button_with_color_safety, key=self.key_querysavebtn),
             sg.Text(query, **attr.base_text, key=self.key_querytxt),
         ]
 
@@ -91,7 +91,7 @@ class QueryResultWindow(BaseWindow):
         self.table_rightclick.set(self.table)
         self.table_selected_layout.set(self.table)
         # Subwindows
-        self.subwin = SubWindow(self.window, [self.key_querybtn])
+        self.subwin = SubWindow(self.window, [self.key_querysavebtn])
 
         #frame_id = self.window[self.key_table].Widget.frame_id
         #canvas = self.window[self.key_table].Widget.canvas
@@ -106,7 +106,7 @@ class QueryResultWindow(BaseWindow):
     def handle(self, event, values):
         if isinstance(event, tuple):
             self.table_click.handle(event, values)
-        elif event == self.key_querybtn:
+        elif event == self.key_querysavebtn:
             self.add_alias(event)
         elif event.startswith(self.filter_layout.prefkey):
             self.filter_layout.handle(event, values)
