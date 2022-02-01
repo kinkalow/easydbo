@@ -125,3 +125,50 @@ When you select rows in the tabular and then press the Update button, the Update
 When you change the values in that window and press the Update button, MySQL is also updated.
 If UpdateWindow does not close automatically, the value may be entered incorrectly.
 The Delete button deletes the selected row and deletes the same data in MySQL.
+
+
+### Configuration files
+
+Prepare the following files in `~/.cache/easydbo`.
+  - table.json
+  - easydbo.cfg
+  - alias.json
+These sample files are in the configs directory in this repository.
+
+The table.json is a configuration file that defines the table information you want to create in MySQL.
+Each element has the following structure.
+```
+{
+  "name"  : "human",
+  "pkauto": false,
+  "columns": {
+    "human_id"         : ["VARCHAR(10)" , "PRIMARY KEY"],
+    "center_name"      : ["VARCHAR(100)", "NOT NULL"],
+    "project_name"     : ["VARCHAR(100)", "NOT NULL"],
+    "human_cancer_type": ["VARCHAR(100)", "NOT NULL"],
+    "human_sex"        : ["VARCHAR(10)", ""]
+  }
+}
+```
+The `name` sets the table name.
+The `pkauto` is a boolean value that indicates whether or not to automatically create a value for the column with primary key attribute.
+The `columns` sets the table field names and its attributes.
+The first element of the attribute specifies the field type.
+The second element specifies the remaining attributes.
+Note that each table must have only one primary key.
+
+The easydbo.cfg is a configuration file to change the default of easydbo.
+
+The alias.json is a configuration file for associating SQL statements as shortcuts.
+Each element has the following structure.
+```
+{
+  "name": "human",
+  "query": "SELECT * FROM human;"
+}
+```
+The `name` is a shortcut name.
+The `query` is a SQL statement.
+If query has question mark(?), the question mark is a placeholder.
+For example, `SELECT * FROM ?;`.
+The question mark can be assigned later, such as human or cancer.
