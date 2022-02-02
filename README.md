@@ -7,20 +7,20 @@ It allows you to operate the four basic SQL instructions (SELECT, UPDATE, INSERT
 ### Requires
 
 - MySQL >= 5.7
-- Python with Tkinter
+- Python with Tkinter >= 3.8
 - PySimpleGUI
 - mysql
 
-<!--
+
 ### Installation
 
 ```bash
 $ git clone https://github.com/kinkalow/easydbo.git
 $ cd easydbo
 $ pip install -r requirements.txt
-$ easydbo --version  # check if the installation was successful
+$ python3 setup.py install
 ```
--->
+<!--$ easydbo --version  # check if the installation was successful-->
 
 
 ### Usage
@@ -31,7 +31,7 @@ Entering `easydbo` on the command line will open MainWindow.
 <!--<img src="https://raw.githubusercontent.com/kinkalow/easydbo/images/images/main.png" width="900">-->
 
 The table buttons are displayed at the top; human, cancer, bam, and vcf.
-They are used when you want to add, update, and delete data from a table.
+They are used when you want to add, update, and delete data from a MySQL table.
 When you click the button, TableWindow opens (See below for details).
 
 Under the table buttons is the Alias button.
@@ -45,8 +45,9 @@ When you check the box, you will get the values of that column.
 This sets the \<columns\> of SELECT statement.
 When you want to filter values, you write the condition in the input texts.
 This sets the \<conditions\> of SELECT statement.
-The \<tables\> is automatically created from checkboxes and input texts.
-In this case, FULL OUTER JOIN is used to join tables.
+The \<tables\> is automatically created from the columns of selected checkboxes and the columns of entered input texts.
+Joining tables uses FULL OUTER JOIN with a combination of NATURAL LEFT and NATURAL RIGHT.
+So the tables you want to join must have the same column names in each table.
 
 When you click the Create button at the bottom, the input texts next to SELECT, FROM and WHERE will be filled with \<columns\>, \<tables\> and \<conditions\> respectively.
 Then, by pressing the Query button, a SELECT statement is created from the input texts and the query is executed.

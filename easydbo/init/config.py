@@ -1,4 +1,5 @@
 import configparser
+from easydbo.output.print_ import SimplePrint as SP
 from easydbo.init.file import File
 from easydbo.util.dictionary import NamedDict
 from easydbo.exception import EASYDBO_FATAL_ERROR
@@ -18,6 +19,9 @@ _default = {
     },
     'output': {
         'format': '',
+    },
+    'main_window': {
+        'location': (None, None),
     },
     'table_window': {
         'confirm_deletion': True,
@@ -62,6 +66,10 @@ class ConfigLoader(File):
                         value = cfg.getint(section, key)
                     elif type_ is str:
                         value = cfg[section][key]
+                    elif type_ is tuple:
+                        value = eval(cfg[section][key])
+                        if type(value) is not tuple:
+                            SP.error(f'{value} is not tuple')
                     else:
                         raise EASYDBO_FATAL_ERROR(f'class ConfigLoader: value={cfg[section][key]}, type={type_}')
                     cfgs[section][key] = value

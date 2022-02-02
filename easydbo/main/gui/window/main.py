@@ -37,7 +37,7 @@ class MainWindow(BaseWindow):
             'EasyDBO Main',
             layout,
             finalize=True,
-            location=(5000, 200),
+            location=pack.configs.main_window.location,
             resizable=True,
             size=(1300, 800),
         )
