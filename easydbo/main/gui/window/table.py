@@ -18,7 +18,8 @@ class TableWindow(BaseWindow):
         #
         self.dbop = pack.dbop
         self.columns = pack.tableop.get_columns([tname], full=True)[0]
-        self.cfg = cfg = pack.configs.table_window
+        self.cfg = pack.configs
+        cfgtw = self.cfg.table_window
         #
         self.filter_windows = None
         #
@@ -68,14 +69,14 @@ class TableWindow(BaseWindow):
 
         # layout_table_all
         self.table_all_layout = TableAllLayout(
-            prefkey, enable_save=cfg.enable_all_save,
-            enable_print=cfg.enable_all_print, enable_greprun=cfg.enable_all_greprun)
+            prefkey, enable_save=cfgtw.enable_all_save,
+            enable_print=cfgtw.enable_all_print, enable_greprun=cfgtw.enable_all_greprun)
         layout_table_all = self.table_all_layout.layout
 
         # layout_table_selected
         self.table_selected_layout = TableSelectedLayout(
-            prefkey, self.key_table, enable_copypaste=cfg.enable_selected_copypaste,
-            enable_save=cfg.enable_selected_save, enable_print=cfg.enable_selected_print, enable_frame=False)
+            prefkey, self.key_table, enable_copypaste=cfgtw.enable_selected_copypaste,
+            enable_save=cfgtw.enable_selected_save, enable_print=cfgtw.enable_selected_print, enable_frame=False)
         layout_table_selected = self.table_selected_layout.layout
         layout_table_selected += [sg.Button('Update', **attr.base_button_with_color_warning, key=self.key_update),
                                   sg.Button('Delete', **attr.base_button_with_color_danger, key=self.key_delete)]
@@ -84,10 +85,10 @@ class TableWindow(BaseWindow):
         # layout_table
         self.table_rightclick = TableRightClick(
             self.key_table,
-            enable_cell_copypaste=cfg.enable_rightclick_cell_copypaste, enable_cell_print=cfg.enable_rightclick_cell_print,
-            enable_row_copypaste=cfg.enable_rightclick_row_copypaste, enable_row_print=cfg.enable_rightclick_row_print,
-            enable_selected_copypaste=cfg.enable_rightclick_selected_copypaste, enable_selected_print=cfg.enable_rightclick_selected_print, enable_selected_save=cfg.enable_rightclick_selected_save,
-            enable_all_print=cfg.enable_rightclick_all_print, enable_all_save=cfg.enable_rightclick_all_save)
+            enable_cell_copypaste=cfgtw.enable_rightclick_cell_copypaste, enable_cell_print=cfgtw.enable_rightclick_cell_print,
+            enable_row_copypaste=cfgtw.enable_rightclick_row_copypaste, enable_row_print=cfgtw.enable_rightclick_row_print,
+            enable_selected_copypaste=cfgtw.enable_rightclick_selected_copypaste, enable_selected_print=cfgtw.enable_rightclick_selected_print, enable_selected_save=cfgtw.enable_rightclick_selected_save,
+            enable_all_print=cfgtw.enable_rightclick_all_print, enable_all_save=cfgtw.enable_rightclick_all_save)
         menu = self.table_rightclick.menu
         layout_table = [
             [sg.Table(
@@ -184,7 +185,7 @@ class TableWindow(BaseWindow):
         return has_err
 
     def close(self):
-        if __debug__:
+        if self.cfg.easydbo.debug:
             if self._compare_tables():
                 return
             SP.debug(f'TableWindow "{self.tname}" finished without any problems')

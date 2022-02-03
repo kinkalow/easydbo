@@ -6,7 +6,8 @@ from easydbo.exception import EASYDBO_FATAL_ERROR
 
 _default = {
     'easydbo': {
-        'verbose': 0
+        'debug': False,
+        'verbose': 0,
     },
     'excel': {
     },
